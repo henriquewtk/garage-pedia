@@ -1,6 +1,7 @@
 import React from 'react';
-import MarcasScreen from './src/screens/MarcasScreen';
+
+import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
-  return <MarcasScreen />;
+  return <AppNavigator />;
 }
