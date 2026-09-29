@@ -1,86 +1,268 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
 import {
   View,
   Text,
   TextInput,
   ScrollView,
+  TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 
-import VehicleCard from '../components/VehicleCard';
+import {
+  getMarcasCarros,
+  getModelosCarros,
+  getAnosModelo,
+  getDadosVeiculo,
+} from '../services/fipeApi';
 
-export default function SearchScreen() {
-  const [search, setSearch] = useState('');
+export default function SearchScreen({ navigation }) {
+  const [marcas, setMarcas] = useState([]);
+  const [modelos, setModelos] = useState([]);
+  const [anos, setAnos] = useState([]);
+
+  const [marcaSelecionada, setMarcaSelecionada] = useState(null);
+  const [modeloSelecionado, setModeloSelecionado] = useState(null);
+
+  const [busca, setBusca] = useState('');
+
+  const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
+  const [carregandoVeiculo, setCarregandoVeiculo] = useState(false);
+
+  const [carregandoMarcas, setCarregandoMarcas] = useState(true);
+  const [carregandoModelos, setCarregandoModelos] = useState(false);
+  const [carregandoAnos, setCarregandoAnos] = useState(false);
+
+  useEffect(() => {
+    carregarMarcas();
+  }, []);
+
+  async function carregarMarcas() {
+    const dados = await getMarcasCarros();
+
+    setMarcas(dados);
+    setCarregandoMarcas(false);
+  }
+
+  async function selecionarMarca(marca) {
+    setMarcaSelecionada(marca);
+    setModeloSelecionado(null);
+    setModelos([]);
+    setAnos([]);
+    setBusca('');
+
+    setCarregandoModelos(true);
+
+    const dados = await getModelosCarros(marca.codigo);
+
+    setModelos(dados);
+    setCarregandoModelos(false);
+  }
+
+  async function selecionarAno(ano) {
+  setCarregandoVeiculo(true);
+
+  const dados = await getDadosVeiculo(
+    marcaSelecionada.codigo,
+    modeloSelecionado.codigo,
+    ano.codigo
+  );
+
+  setCarregandoVeiculo(false);
+
+  if (dados) {
+    navigation.navigate('VehicleDetails', {
+      veiculo: dados,
+    });
+  }
+}
+
+  async function selecionarModelo(modelo) {
+    setModeloSelecionado(modelo);
+    setAnos([]);
+    setBusca('');
+
+    setCarregandoAnos(true);
+
+    const dados = await getAnosModelo(
+      marcaSelecionada.codigo,
+      modelo.codigo
+    );
+
+    setAnos(dados);
+    setCarregandoAnos(false);
+  }
+
+  function voltarParaMarcas() {
+    setMarcaSelecionada(null);
+    setModeloSelecionado(null);
+    setModelos([]);
+    setAnos([]);
+    setBusca('');
+  }
+
+  function voltarParaModelos() {
+    setModeloSelecionado(null);
+    setAnos([]);
+    setBusca('');
+  }
+
+  const marcasFiltradas = marcas.filter((marca) =>
+    marca.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  const modelosFiltrados = modelos.filter((modelo) =>
+    modelo.nome.toLowerCase().includes(busca.toLowerCase())
+  );
 
   return (
     <ScrollView style={styles.container}>
 
       <View style={styles.header}>
         <Text style={styles.title}>Pesquisa</Text>
+
         <Text style={styles.subtitle}>
-          Encontre o veículo ideal para você
+          Encontre seu veículo
         </Text>
       </View>
 
       <TextInput
         style={styles.search}
-        placeholder="Busque por marca ou modelo..."
+        placeholder={
+          modeloSelecionado
+            ? 'Pesquise um ano...'
+            : marcaSelecionada
+            ? 'Pesquise um modelo...'
+            : 'Pesquise uma marca...'
+        }
         placeholderTextColor="#888"
-        value={search}
-        onChangeText={setSearch}
+        value={busca}
+        onChangeText={setBusca}
       />
 
-      <View style={styles.resultHeader}>
-        <Text style={styles.resultTitle}>
-          Resultados encontrados
-        </Text>
+      {!marcaSelecionada && (
+        <View>
 
-        <Text style={styles.order}>
-          Menor preço
-        </Text>
-      </View>
+          <Text style={styles.sectionTitle}>
+            Marcas
+          </Text>
 
-      <VehicleCard
-        brand="Tesla"
-        model="Model Y Long Range"
-        year="2023"
-        condition="12.400 km"
-        price="R$ 349.900"
-        location="São Paulo - SP"
-      />
+          {carregandoMarcas ? (
+            <ActivityIndicator size="large" />
+          ) : (
+            marcasFiltradas.map((marca) => (
+              <TouchableOpacity
+                key={marca.codigo}
+                style={styles.item}
+                onPress={() => selecionarMarca(marca)}
+              >
+                <Text style={styles.itemText}>
+                  {marca.nome}
+                </Text>
 
-      <VehicleCard
-        brand="Tesla"
-        model="Model Y Performance"
-        year="2022"
-        condition="24.000 km"
-        price="R$ 389.000"
-        location="Campinas - SP"
-      />
+                <Text style={styles.arrow}>
+                  ›
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
 
-      <VehicleCard
-        brand="BYD"
-        model="Seal AWD"
-        year="2023"
-        condition="Zero Km"
-        price="R$ 296.800"
-        location="São Paulo - SP"
-      />
+        </View>
+      )}
 
-      <VehicleCard
-        brand="BMW"
-        model="i4 M50"
-        year="2023"
-        condition="8.500 km"
-        price="R$ 429.900"
-        location="São Bernardo - SP"
-      />
+      {marcaSelecionada && !modeloSelecionado && (
+        <View>
+
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={voltarParaMarcas}
+          >
+            <Text style={styles.backText}>
+              ← Voltar para marcas
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.selectedTitle}>
+            {marcaSelecionada.nome}
+          </Text>
+
+          <Text style={styles.sectionTitle}>
+            Modelos
+          </Text>
+
+          {carregandoModelos ? (
+            <ActivityIndicator size="large" />
+          ) : (
+            modelosFiltrados.map((modelo) => (
+              <TouchableOpacity
+                key={modelo.codigo}
+                style={styles.item}
+                onPress={() => selecionarModelo(modelo)}
+              >
+                <Text style={styles.itemText}>
+                  {modelo.nome}
+                </Text>
+
+                <Text style={styles.arrow}>
+                  ›
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+
+        </View>
+      )}
+
+      {marcaSelecionada && modeloSelecionado && (
+        <View>
+
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={voltarParaModelos}
+          >
+            <Text style={styles.backText}>
+              ← Voltar para modelos
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.selectedTitle}>
+            {modeloSelecionado.nome}
+          </Text>
+
+          <Text style={styles.sectionTitle}>
+            Anos disponíveis
+          </Text>
+
+          {carregandoAnos ? (
+            <ActivityIndicator size="large" />
+          ) : (
+            anos.map((ano) => (
+              <TouchableOpacity
+                key={ano.codigo}
+                style={styles.item}
+                onPress={() => selecionarAno(ano)}
+              >
+                <Text style={styles.itemText}>
+                  {ano.nome}
+                </Text>
+
+                <Text style={styles.arrow}>
+                  ›
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+
+        </View>
+      )}
 
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -114,21 +296,47 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
 
-  resultHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111111',
     marginBottom: 15,
   },
 
-  resultTitle: {
-    fontSize: 17,
+  selectedTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#111111',
+    marginBottom: 20,
   },
 
-  order: {
-    fontSize: 13,
-    color: '#666666',
+  item: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 17,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
   },
+
+  itemText: {
+    fontSize: 16,
+    color: '#111111',
+    flex: 1,
+  },
+
+  arrow: {
+    fontSize: 24,
+    color: '#888888',
+  },
+
+  backButton: {
+    marginBottom: 20,
+  },
+
+  backText: {
+    fontSize: 15,
+    color: '#555555',
+  },
+
 });
