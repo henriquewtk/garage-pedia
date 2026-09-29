@@ -1,17 +1,40 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import {
+  NavigationContainer,
+} from '@react-navigation/native';
+
+import {
+  createNativeStackNavigator,
+} from '@react-navigation/native-stack';
 
 import MainTabs from './MainTabs';
+import VehicleDetailsScreen from '../screens/VehicleDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="MainTabs" component={MainTabs} />
+
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+
+        <Stack.Screen
+          name="MainTabs"
+          component={MainTabs}
+        />
+
+        <Stack.Screen
+          name="VehicleDetails"
+          component={VehicleDetailsScreen}
+        />
+
       </Stack.Navigator>
+
     </NavigationContainer>
   );
 }
