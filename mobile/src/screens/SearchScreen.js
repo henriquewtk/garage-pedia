@@ -22,17 +22,25 @@ export default function SearchScreen({ navigation }) {
   const [modelos, setModelos] = useState([]);
   const [anos, setAnos] = useState([]);
 
-  const [marcaSelecionada, setMarcaSelecionada] = useState(null);
-  const [modeloSelecionado, setModeloSelecionado] = useState(null);
+  const [marcaSelecionada, setMarcaSelecionada] =
+    useState(null);
+
+  const [modeloSelecionado, setModeloSelecionado] =
+    useState(null);
 
   const [busca, setBusca] = useState('');
 
-  const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
-  const [carregandoVeiculo, setCarregandoVeiculo] = useState(false);
+  const [carregandoMarcas, setCarregandoMarcas] =
+    useState(true);
 
-  const [carregandoMarcas, setCarregandoMarcas] = useState(true);
-  const [carregandoModelos, setCarregandoModelos] = useState(false);
-  const [carregandoAnos, setCarregandoAnos] = useState(false);
+  const [carregandoModelos, setCarregandoModelos] =
+    useState(false);
+
+  const [carregandoAnos, setCarregandoAnos] =
+    useState(false);
+
+  const [carregandoVeiculo, setCarregandoVeiculo] =
+    useState(false);
 
   useEffect(() => {
     carregarMarcas();
@@ -48,38 +56,24 @@ export default function SearchScreen({ navigation }) {
   async function selecionarMarca(marca) {
     setMarcaSelecionada(marca);
     setModeloSelecionado(null);
+
     setModelos([]);
     setAnos([]);
     setBusca('');
 
     setCarregandoModelos(true);
 
-    const dados = await getModelosCarros(marca.codigo);
+    const dados = await getModelosCarros(
+      marca.codigo
+    );
 
     setModelos(dados);
     setCarregandoModelos(false);
   }
 
-  async function selecionarAno(ano) {
-  setCarregandoVeiculo(true);
-
-  const dados = await getDadosVeiculo(
-    marcaSelecionada.codigo,
-    modeloSelecionado.codigo,
-    ano.codigo
-  );
-
-  setCarregandoVeiculo(false);
-
-  if (dados) {
-    navigation.navigate('VehicleDetails', {
-      veiculo: dados,
-    });
-  }
-}
-
   async function selecionarModelo(modelo) {
     setModeloSelecionado(modelo);
+
     setAnos([]);
     setBusca('');
 
@@ -94,9 +88,28 @@ export default function SearchScreen({ navigation }) {
     setCarregandoAnos(false);
   }
 
+  async function selecionarAno(ano) {
+    setCarregandoVeiculo(true);
+
+    const dados = await getDadosVeiculo(
+      marcaSelecionada.codigo,
+      modeloSelecionado.codigo,
+      ano.codigo
+    );
+
+    setCarregandoVeiculo(false);
+
+    if (dados) {
+      navigation.navigate('VehicleDetails', {
+        veiculo: dados,
+      });
+    }
+  }
+
   function voltarParaMarcas() {
     setMarcaSelecionada(null);
     setModeloSelecionado(null);
+
     setModelos([]);
     setAnos([]);
     setBusca('');
@@ -104,27 +117,45 @@ export default function SearchScreen({ navigation }) {
 
   function voltarParaModelos() {
     setModeloSelecionado(null);
+
     setAnos([]);
     setBusca('');
   }
 
   const marcasFiltradas = marcas.filter((marca) =>
-    marca.nome.toLowerCase().includes(busca.toLowerCase())
+    marca.nome
+      .toLowerCase()
+      .includes(busca.toLowerCase())
   );
 
   const modelosFiltrados = modelos.filter((modelo) =>
-    modelo.nome.toLowerCase().includes(busca.toLowerCase())
+    modelo.nome
+      .toLowerCase()
+      .includes(busca.toLowerCase())
+  );
+
+  const anosFiltrados = anos.filter((ano) =>
+    ano.nome
+      .toLowerCase()
+      .includes(busca.toLowerCase())
   );
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
 
       <View style={styles.header}>
-        <Text style={styles.title}>Pesquisa</Text>
+
+        <Text style={styles.title}>
+          Pesquisa
+        </Text>
 
         <Text style={styles.subtitle}>
           Encontre seu veículo
         </Text>
+
       </View>
 
       <TextInput
@@ -136,10 +167,12 @@ export default function SearchScreen({ navigation }) {
             ? 'Pesquise um modelo...'
             : 'Pesquise uma marca...'
         }
-        placeholderTextColor="#888"
+        placeholderTextColor="#888888"
         value={busca}
         onChangeText={setBusca}
       />
+
+      {/* MARCAS */}
 
       {!marcaSelecionada && (
         <View>
@@ -149,14 +182,26 @@ export default function SearchScreen({ navigation }) {
           </Text>
 
           {carregandoMarcas ? (
-            <ActivityIndicator size="large" />
+            <View style={styles.loading}>
+              <ActivityIndicator size="large" />
+              <Text style={styles.loadingText}>
+                Carregando marcas...
+              </Text>
+            </View>
+          ) : marcasFiltradas.length === 0 ? (
+            <Text style={styles.emptyText}>
+              Nenhuma marca encontrada.
+            </Text>
           ) : (
             marcasFiltradas.map((marca) => (
               <TouchableOpacity
                 key={marca.codigo}
                 style={styles.item}
-                onPress={() => selecionarMarca(marca)}
+                onPress={() =>
+                  selecionarMarca(marca)
+                }
               >
+
                 <Text style={styles.itemText}>
                   {marca.nome}
                 </Text>
@@ -164,6 +209,7 @@ export default function SearchScreen({ navigation }) {
                 <Text style={styles.arrow}>
                   ›
                 </Text>
+
               </TouchableOpacity>
             ))
           )}
@@ -171,88 +217,143 @@ export default function SearchScreen({ navigation }) {
         </View>
       )}
 
-      {marcaSelecionada && !modeloSelecionado && (
-        <View>
+      {/* MODELOS */}
 
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={voltarParaMarcas}
-          >
-            <Text style={styles.backText}>
-              ← Voltar para marcas
+      {marcaSelecionada &&
+        !modeloSelecionado && (
+          <View>
+
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={voltarParaMarcas}
+            >
+              <Text style={styles.backText}>
+                ← Voltar para marcas
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.selectedLabel}>
+              Marca selecionada
             </Text>
-          </TouchableOpacity>
 
-          <Text style={styles.selectedTitle}>
-            {marcaSelecionada.nome}
-          </Text>
-
-          <Text style={styles.sectionTitle}>
-            Modelos
-          </Text>
-
-          {carregandoModelos ? (
-            <ActivityIndicator size="large" />
-          ) : (
-            modelosFiltrados.map((modelo) => (
-              <TouchableOpacity
-                key={modelo.codigo}
-                style={styles.item}
-                onPress={() => selecionarModelo(modelo)}
-              >
-                <Text style={styles.itemText}>
-                  {modelo.nome}
-                </Text>
-
-                <Text style={styles.arrow}>
-                  ›
-                </Text>
-              </TouchableOpacity>
-            ))
-          )}
-
-        </View>
-      )}
-
-      {marcaSelecionada && modeloSelecionado && (
-        <View>
-
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={voltarParaModelos}
-          >
-            <Text style={styles.backText}>
-              ← Voltar para modelos
+            <Text style={styles.selectedTitle}>
+              {marcaSelecionada.nome}
             </Text>
-          </TouchableOpacity>
 
-          <Text style={styles.selectedTitle}>
-            {modeloSelecionado.nome}
-          </Text>
+            <Text style={styles.sectionTitle}>
+              Modelos
+            </Text>
 
-          <Text style={styles.sectionTitle}>
-            Anos disponíveis
-          </Text>
-
-          {carregandoAnos ? (
-            <ActivityIndicator size="large" />
-          ) : (
-            anos.map((ano) => (
-              <TouchableOpacity
-                key={ano.codigo}
-                style={styles.item}
-                onPress={() => selecionarAno(ano)}
-              >
-                <Text style={styles.itemText}>
-                  {ano.nome}
+            {carregandoModelos ? (
+              <View style={styles.loading}>
+                <ActivityIndicator size="large" />
+                <Text style={styles.loadingText}>
+                  Carregando modelos...
                 </Text>
+              </View>
+            ) : modelosFiltrados.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Nenhum modelo encontrado.
+              </Text>
+            ) : (
+              modelosFiltrados.map((modelo) => (
+                <TouchableOpacity
+                  key={modelo.codigo}
+                  style={styles.item}
+                  onPress={() =>
+                    selecionarModelo(modelo)
+                  }
+                >
 
-                <Text style={styles.arrow}>
-                  ›
+                  <Text style={styles.itemText}>
+                    {modelo.nome}
+                  </Text>
+
+                  <Text style={styles.arrow}>
+                    ›
+                  </Text>
+
+                </TouchableOpacity>
+              ))
+            )}
+
+          </View>
+        )}
+
+      {/* ANOS */}
+
+      {marcaSelecionada &&
+        modeloSelecionado && (
+          <View>
+
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={voltarParaModelos}
+            >
+              <Text style={styles.backText}>
+                ← Voltar para modelos
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.selectedLabel}>
+              Modelo selecionado
+            </Text>
+
+            <Text style={styles.selectedTitle}>
+              {modeloSelecionado.nome}
+            </Text>
+
+            <Text style={styles.sectionTitle}>
+              Anos disponíveis
+            </Text>
+
+            {carregandoAnos ? (
+              <View style={styles.loading}>
+                <ActivityIndicator size="large" />
+                <Text style={styles.loadingText}>
+                  Carregando anos...
                 </Text>
-              </TouchableOpacity>
-            ))
-          )}
+              </View>
+            ) : anosFiltrados.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Nenhum ano encontrado.
+              </Text>
+            ) : (
+              anosFiltrados.map((ano) => (
+                <TouchableOpacity
+                  key={ano.codigo}
+                  style={styles.item}
+                  disabled={carregandoVeiculo}
+                  onPress={() =>
+                    selecionarAno(ano)
+                  }
+                >
+
+                  <Text style={styles.itemText}>
+                    {ano.nome}
+                  </Text>
+
+                  <Text style={styles.arrow}>
+                    ›
+                  </Text>
+
+                </TouchableOpacity>
+              ))
+            )}
+
+          </View>
+        )}
+
+      {/* CARREGANDO VEÍCULO */}
+
+      {carregandoVeiculo && (
+        <View style={styles.vehicleLoading}>
+
+          <ActivityIndicator size="large" />
+
+          <Text style={styles.loadingText}>
+            Buscando informações do veículo...
+          </Text>
 
         </View>
       )}
@@ -303,6 +404,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
+  selectedLabel: {
+    fontSize: 13,
+    color: '#888888',
+    marginBottom: 4,
+  },
+
   selectedTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -328,6 +435,7 @@ const styles = StyleSheet.create({
   arrow: {
     fontSize: 24,
     color: '#888888',
+    marginLeft: 10,
   },
 
   backButton: {
@@ -337,6 +445,30 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 15,
     color: '#555555',
+  },
+
+  loading: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+
+  vehicleLoading: {
+    alignItems: 'center',
+    paddingVertical: 25,
+    marginBottom: 30,
+  },
+
+  loadingText: {
+    fontSize: 14,
+    color: '#666666',
+    marginTop: 10,
+  },
+
+  emptyText: {
+    fontSize: 15,
+    color: '#777777',
+    textAlign: 'center',
+    paddingVertical: 30,
   },
 
 });

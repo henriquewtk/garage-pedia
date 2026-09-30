@@ -10,18 +10,26 @@ import {
 
 import MainTabs from './MainTabs';
 import VehicleDetailsScreen from '../screens/VehicleDetailsScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import LoginScreen from '../screens/LoginScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-
       <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
+        screenOptions={{ headerShown: false }}
       >
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+        />
+
+        <Stack.Screen
+          name="Register"
+          component={RegisterScreen}
+        />
 
         <Stack.Screen
           name="MainTabs"
@@ -32,9 +40,7 @@ export default function AppNavigator() {
           name="VehicleDetails"
           component={VehicleDetailsScreen}
         />
-
       </Stack.Navigator>
-
     </NavigationContainer>
   );
 }

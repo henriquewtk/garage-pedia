@@ -6,13 +6,75 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import {
+  adicionarFavorito,
+  removerFavorito,
+} from '../database/database';
 
 export default function VehicleDetailsScreen({ route }) {
   const { veiculo } = route.params;
 
   const [abaSelecionada, setAbaSelecionada] =
     useState('sobre');
+
+  const [favoritado, setFavoritado] =
+    useState(false);
+
+    async function alternarFavorito() {
+  try {
+    const usuarioId =
+      await AsyncStorage.getItem('usuarioLogado');
+
+    if (!usuarioId) {
+      Alert.alert(
+        'Atenção',
+        'Usuário não identificado.'
+      );
+      return;
+    }
+
+    if (favoritado) {
+      await removerFavorito(
+        Number(usuarioId),
+        veiculo.CodigoFipe
+      );
+
+      setFavoritado(false);
+
+      Alert.alert(
+        'Favorito removido',
+        'Veículo removido dos favoritos.'
+      );
+    } else {
+      await adicionarFavorito(
+        Number(usuarioId),
+        veiculo
+      );
+
+      setFavoritado(true);
+
+      Alert.alert(
+        'Favorito adicionado',
+        'Veículo salvo nos favoritos.'
+      );
+    }
+  } catch (error) {
+    console.error(
+      'Erro ao alterar favorito:',
+      error
+    );
+
+    Alert.alert(
+      'Erro',
+      'Não foi possível alterar o favorito.'
+    );
+  }
+}
 
   return (
     <ScrollView style={styles.container}>
@@ -32,6 +94,17 @@ export default function VehicleDetailsScreen({ route }) {
         </Text>
 
       </View>
+
+      <TouchableOpacity
+        style={styles.favoriteButton}
+        onPress={alternarFavorito}
+      >
+        <Text style={styles.favoriteText}>
+          {favoritado
+            ? '★ Remover dos favoritos'
+            : '☆ Adicionar aos favoritos'}
+        </Text>
+      </TouchableOpacity>
 
       <View style={styles.mainInfo}>
 
@@ -231,6 +304,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111111',
     marginTop: 12,
+  },
+
+  favoriteButton: {
+    marginBottom: 25,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  favoriteText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222222',
   },
 
   mainInfo: {
