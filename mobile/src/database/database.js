@@ -50,6 +50,39 @@ export async function inicializarBanco() {
     );
   `);
 
+    // Verifica e adiciona as novas colunas de preço e combustível
+  const colunas = await db.getAllAsync(
+    `PRAGMA table_info(comparacoes)`
+  );
+
+  const nomesColunas = colunas.map(
+    (coluna) => coluna.name
+  );
+
+  if (!nomesColunas.includes('veiculo1_valor')) {
+    await db.execAsync(
+      'ALTER TABLE comparacoes ADD COLUMN veiculo1_valor TEXT'
+    );
+  }
+
+  if (!nomesColunas.includes('veiculo1_combustivel')) {
+    await db.execAsync(
+      'ALTER TABLE comparacoes ADD COLUMN veiculo1_combustivel TEXT'
+    );
+  }
+
+  if (!nomesColunas.includes('veiculo2_valor')) {
+    await db.execAsync(
+      'ALTER TABLE comparacoes ADD COLUMN veiculo2_valor TEXT'
+    );
+  }
+
+  if (!nomesColunas.includes('veiculo2_combustivel')) {
+    await db.execAsync(
+      'ALTER TABLE comparacoes ADD COLUMN veiculo2_combustivel TEXT'
+    );
+  }
+
   return db;
 }
 

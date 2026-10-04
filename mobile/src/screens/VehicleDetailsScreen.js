@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import {
   View,
@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   adicionarFavorito,
   removerFavorito,
+  listarFavoritos,
 } from '../database/database';
 
 export default function VehicleDetailsScreen({ route }) {
@@ -25,56 +26,111 @@ export default function VehicleDetailsScreen({ route }) {
   const [favoritado, setFavoritado] =
     useState(false);
 
-    async function alternarFavorito() {
-  try {
-    const usuarioId =
-      await AsyncStorage.getItem('usuarioLogado');
+  const [carregandoFavorito, setCarregandoFavorito] =
+    useState(true);
 
-    if (!usuarioId) {
-      Alert.alert(
-        'Atenção',
-        'Usuário não identificado.'
-      );
+  const [alterandoFavorito, setAlterandoFavorito] =
+    useState(false);
+
+  // Verifica se o veículo já está salvo no banco
+  useEffect(() => {
+    async function verificarFavorito() {
+      try {
+        const usuarioId =
+          await AsyncStorage.getItem('usuarioLogado');
+
+        if (!usuarioId) {
+          setFavoritado(false);
+          return;
+        }
+
+        const favoritos = await listarFavoritos(
+          Number(usuarioId)
+        );
+
+        const jaFavoritado = favoritos.some(
+          (item) =>
+            item.codigo_fipe === veiculo.CodigoFipe
+        );
+
+        setFavoritado(jaFavoritado);
+      } catch (error) {
+        console.error(
+          'Erro ao verificar favorito:',
+          error
+        );
+
+        Alert.alert(
+          'Erro',
+          'Não foi possível consultar os favoritos.'
+        );
+      } finally {
+        setCarregandoFavorito(false);
+      }
+    }
+
+    verificarFavorito();
+  }, [veiculo.CodigoFipe]);
+
+  // Adiciona ou remove o veículo dos favoritos
+  async function alternarFavorito() {
+    if (alterandoFavorito || carregandoFavorito) {
       return;
     }
 
-    if (favoritado) {
-      await removerFavorito(
-        Number(usuarioId),
-        veiculo.CodigoFipe
-      );
+    setAlterandoFavorito(true);
 
-      setFavoritado(false);
+    try {
+      const usuarioId =
+        await AsyncStorage.getItem('usuarioLogado');
+
+      if (!usuarioId) {
+        Alert.alert(
+          'Atenção',
+          'Faça login para salvar seus favoritos.'
+        );
+        return;
+      }
+
+      if (favoritado) {
+        await removerFavorito(
+          Number(usuarioId),
+          veiculo.CodigoFipe
+        );
+
+        setFavoritado(false);
+
+        Alert.alert(
+          'Favorito removido',
+          'Veículo removido dos favoritos.'
+        );
+      } else {
+        await adicionarFavorito(
+          Number(usuarioId),
+          veiculo
+        );
+
+        setFavoritado(true);
+
+        Alert.alert(
+          'Favorito adicionado',
+          'Veículo salvo nos favoritos.'
+        );
+      }
+    } catch (error) {
+      console.error(
+        'Erro ao alterar favorito:',
+        error
+      );
 
       Alert.alert(
-        'Favorito removido',
-        'Veículo removido dos favoritos.'
+        'Erro',
+        'Não foi possível alterar o favorito.'
       );
-    } else {
-      await adicionarFavorito(
-        Number(usuarioId),
-        veiculo
-      );
-
-      setFavoritado(true);
-
-      Alert.alert(
-        'Favorito adicionado',
-        'Veículo salvo nos favoritos.'
-      );
+    } finally {
+      setAlterandoFavorito(false);
     }
-  } catch (error) {
-    console.error(
-      'Erro ao alterar favorito:',
-      error
-    );
-
-    Alert.alert(
-      'Erro',
-      'Não foi possível alterar o favorito.'
-    );
   }
-}
 
   return (
     <ScrollView style={styles.container}>
@@ -98,11 +154,16 @@ export default function VehicleDetailsScreen({ route }) {
       <TouchableOpacity
         style={styles.favoriteButton}
         onPress={alternarFavorito}
+        disabled={carregandoFavorito || alterandoFavorito}
       >
         <Text style={styles.favoriteText}>
-          {favoritado
-            ? '★ Remover dos favoritos'
-            : '☆ Adicionar aos favoritos'}
+          {carregandoFavorito
+            ? 'Verificando favorito...'
+            : alterandoFavorito
+              ? 'Aguarde...'
+              : favoritado
+                ? '★ Remover dos favoritos'
+                : '☆ Adicionar aos favoritos'}
         </Text>
       </TouchableOpacity>
 
@@ -160,9 +221,7 @@ export default function VehicleDetailsScreen({ route }) {
               styles.tabAtiva,
           ]}
           onPress={() =>
-            setAbaSelecionada(
-              'especificacoes'
-            )
+            setAbaSelecionada('especificacoes')
           }
         >
           <Text
