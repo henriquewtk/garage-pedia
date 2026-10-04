@@ -10,8 +10,11 @@ import {
 
 import MainTabs from './MainTabs';
 import VehicleDetailsScreen from '../screens/VehicleDetailsScreen';
+import ComparisonHistoryScreen from '../screens/ComparisonHistoryScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import LoginScreen from '../screens/LoginScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +43,22 @@ export default function AppNavigator() {
           name="VehicleDetails"
           component={VehicleDetailsScreen}
         />
+
+        <Stack.Screen
+          name="ComparisonHistory"
+          component={ComparisonHistoryScreen}
+        />
+
+        <Stack.Screen
+          name="EditProfile"
+          component={EditProfileScreen}
+        />
+
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+        />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
