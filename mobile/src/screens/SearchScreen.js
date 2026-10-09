@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
 
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   getMarcasCarros,
@@ -17,458 +19,568 @@ import {
   getDadosVeiculo,
 } from '../services/fipeApi';
 
+import { useSettings } from '../context/SettingsContext';
+
 export default function SearchScreen({ navigation }) {
+  const { cores, idioma } = useSettings();
+  const insets = useSafeAreaInsets();
+  const styles = criarEstilos(cores);
+
+  const textos = idioma === 'en'
+    ? {
+        title: 'Vehicle search',
+        searchMake: 'Search for a make...',
+        searchModel: 'Search for a model...',
+        searchYear: 'Search for a year...',
+        makes: 'Makes',
+        found: 'found',
+        loadingMakes: 'Loading makes...',
+        loadingModels: 'Loading models...',
+        loadingYears: 'Loading years...',
+        noMake: 'No makes found.',
+        noModel: 'No models found.',
+        noYear: 'No years found.',
+        errorMakes: 'Could not load makes.',
+        errorModels: 'Could not load models.',
+        errorYears: 'Could not load years.',
+        selectedMake: 'SELECTED MAKE',
+        selectedVehicle: 'SELECTED VEHICLE',
+        availableModels: 'Available models',
+        modelYear: 'Model year',
+        backMakes: 'Back to makes',
+        backModels: 'Back to models',
+        vehicleError: 'Could not retrieve vehicle information.',
+        vehicleFailure: 'Failed to retrieve vehicle. Please try again.',
+        loadingVehicle: 'Loading vehicle information...',
+      }
+    : {
+        title: 'Pesquisa de veículos',
+        searchMake: 'Pesquise uma marca...',
+        searchModel: 'Pesquise um modelo...',
+        searchYear: 'Pesquise um ano...',
+        makes: 'Marcas',
+        found: 'encontradas',
+        loadingMakes: 'Carregando marcas...',
+        loadingModels: 'Carregando modelos...',
+        loadingYears: 'Carregando anos...',
+        noMake: 'Nenhuma marca encontrada.',
+        noModel: 'Nenhum modelo encontrado.',
+        noYear: 'Nenhum ano encontrado.',
+        errorMakes: 'Não foi possível carregar as marcas.',
+        errorModels: 'Não foi possível carregar os modelos.',
+        errorYears: 'Não foi possível carregar os anos.',
+        selectedMake: 'MARCA SELECIONADA',
+        selectedVehicle: 'VEÍCULO SELECIONADO',
+        availableModels: 'Modelos disponíveis',
+        modelYear: 'Ano do modelo',
+        backMakes: 'Voltar para marcas',
+        backModels: 'Voltar para modelos',
+        vehicleError: 'Não foi possível obter os dados deste veículo.',
+        vehicleFailure: 'Falha ao consultar o veículo. Tente novamente.',
+        loadingVehicle: 'Buscando informações do veículo...',
+      };
+
   const [marcas, setMarcas] = useState([]);
   const [modelos, setModelos] = useState([]);
   const [anos, setAnos] = useState([]);
 
-  const [marcaSelecionada, setMarcaSelecionada] =
-    useState(null);
-
-  const [modeloSelecionado, setModeloSelecionado] =
-    useState(null);
-
+  const [marcaSelecionada, setMarcaSelecionada] = useState(null);
+  const [modeloSelecionado, setModeloSelecionado] = useState(null);
   const [busca, setBusca] = useState('');
 
-  const [carregandoMarcas, setCarregandoMarcas] =
-    useState(true);
-
-  const [carregandoModelos, setCarregandoModelos] =
-    useState(false);
-
-  const [carregandoAnos, setCarregandoAnos] =
-    useState(false);
-
-  const [carregandoVeiculo, setCarregandoVeiculo] =
-    useState(false);
+  const [carregandoMarcas, setCarregandoMarcas] = useState(true);
+  const [carregandoModelos, setCarregandoModelos] = useState(false);
+  const [carregandoAnos, setCarregandoAnos] = useState(false);
+  const [carregandoVeiculo, setCarregandoVeiculo] = useState(false);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
     carregarMarcas();
   }, []);
 
   async function carregarMarcas() {
-    const dados = await getMarcasCarros();
-
-    setMarcas(dados);
-    setCarregandoMarcas(false);
+    try {
+      setErro('');
+      const dados = await getMarcasCarros();
+      setMarcas(Array.isArray(dados) ? dados : []);
+    } catch (error) {
+      console.error('Erro ao carregar marcas:', error);
+      setErro(textos.errorMakes);
+    } finally {
+      setCarregandoMarcas(false);
+    }
   }
 
   async function selecionarMarca(marca) {
     setMarcaSelecionada(marca);
     setModeloSelecionado(null);
-
     setModelos([]);
     setAnos([]);
     setBusca('');
-
+    setErro('');
     setCarregandoModelos(true);
 
-    const dados = await getModelosCarros(
-      marca.codigo
-    );
-
-    setModelos(dados);
-    setCarregandoModelos(false);
+    try {
+      const dados = await getModelosCarros(marca.codigo);
+      setModelos(Array.isArray(dados) ? dados : []);
+    } catch (error) {
+      console.error('Erro ao carregar modelos:', error);
+      setErro(textos.errorModels);
+    } finally {
+      setCarregandoModelos(false);
+    }
   }
 
   async function selecionarModelo(modelo) {
     setModeloSelecionado(modelo);
-
     setAnos([]);
     setBusca('');
-
+    setErro('');
     setCarregandoAnos(true);
 
-    const dados = await getAnosModelo(
-      marcaSelecionada.codigo,
-      modelo.codigo
-    );
-
-    setAnos(dados);
-    setCarregandoAnos(false);
+    try {
+      const dados = await getAnosModelo(
+        marcaSelecionada.codigo,
+        modelo.codigo
+      );
+      setAnos(Array.isArray(dados) ? dados : []);
+    } catch (error) {
+      console.error('Erro ao carregar anos:', error);
+      setErro(textos.errorYears);
+    } finally {
+      setCarregandoAnos(false);
+    }
   }
 
   async function selecionarAno(ano) {
     setCarregandoVeiculo(true);
+    setErro('');
 
-    const dados = await getDadosVeiculo(
-      marcaSelecionada.codigo,
-      modeloSelecionado.codigo,
-      ano.codigo
-    );
+    try {
+      const dados = await getDadosVeiculo(
+        marcaSelecionada.codigo,
+        modeloSelecionado.codigo,
+        ano.codigo
+      );
 
-    setCarregandoVeiculo(false);
-
-    if (dados) {
-      navigation.navigate('VehicleDetails', {
-        veiculo: dados,
-      });
+      if (dados) {
+        navigation.navigate('VehicleDetails', {
+          veiculo: dados,
+        });
+      } else {
+        setErro(textos.vehicleError);
+      }
+    } catch (error) {
+      console.error('Erro ao consultar veículo:', error);
+      setErro(textos.vehicleFailure);
+    } finally {
+      setCarregandoVeiculo(false);
     }
   }
 
   function voltarParaMarcas() {
     setMarcaSelecionada(null);
     setModeloSelecionado(null);
-
     setModelos([]);
     setAnos([]);
     setBusca('');
+    setErro('');
   }
 
   function voltarParaModelos() {
     setModeloSelecionado(null);
-
     setAnos([]);
     setBusca('');
+    setErro('');
   }
 
   const marcasFiltradas = marcas.filter((marca) =>
-    marca.nome
-      .toLowerCase()
-      .includes(busca.toLowerCase())
+    marca.nome.toLowerCase().includes(busca.toLowerCase())
   );
 
   const modelosFiltrados = modelos.filter((modelo) =>
-    modelo.nome
-      .toLowerCase()
-      .includes(busca.toLowerCase())
+    modelo.nome.toLowerCase().includes(busca.toLowerCase())
   );
 
   const anosFiltrados = anos.filter((ano) =>
-    ano.nome
-      .toLowerCase()
-      .includes(busca.toLowerCase())
+    ano.nome.toLowerCase().includes(busca.toLowerCase())
   );
+
+  const placeholder = modeloSelecionado
+    ? textos.searchYear
+    : marcaSelecionada
+    ? textos.searchModel
+    : textos.searchMake;
+
+  function renderLista(dados, aoSelecionar) {
+    return dados.map((item) => (
+      <TouchableOpacity
+        key={item.codigo}
+        style={styles.item}
+        activeOpacity={0.75}
+        disabled={carregandoVeiculo}
+        onPress={() => aoSelecionar(item)}
+      >
+        <View style={styles.itemIcon}>
+          <Ionicons
+            name="car-outline"
+            size={22}
+            color={cores.primary}
+          />
+        </View>
+
+        <Text style={styles.itemText}>{item.nome}</Text>
+
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color={cores.primary}
+        />
+      </TouchableOpacity>
+    ));
+  }
+
+  function renderCarregamento(mensagem) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={cores.primary} />
+        <Text style={styles.loadingText}>{mensagem}</Text>
+      </View>
+    );
+  }
+
+  function renderVazio(mensagem) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons
+          name="search-outline"
+          size={30}
+          color={cores.secondary}
+        />
+        <Text style={styles.emptyText}>{mensagem}</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
       style={styles.container}
+      contentContainerStyle={[
+      styles.content,
+      { paddingTop: Math.max(insets.top, 16) + 16 },
+      ]}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
-
       <View style={styles.header}>
-
-        <Text style={styles.title}>
-          Pesquisa
-        </Text>
-
-        <Text style={styles.subtitle}>
-          Encontre seu veículo
-        </Text>
-
+        <Text style={styles.title}>{textos.title}</Text>
       </View>
 
-      <TextInput
-        style={styles.search}
-        placeholder={
-          modeloSelecionado
-            ? 'Pesquise um ano...'
-            : marcaSelecionada
-            ? 'Pesquise um modelo...'
-            : 'Pesquise uma marca...'
-        }
-        placeholderTextColor="#888888"
-        value={busca}
-        onChangeText={setBusca}
-      />
+      <View style={styles.searchContainer}>
+        <Ionicons
+          name="search-outline"
+          size={21}
+          color={cores.secondary}
+        />
 
-      {/* MARCAS */}
+        <TextInput
+          style={styles.search}
+          placeholder={placeholder}
+          placeholderTextColor={cores.secondary}
+          value={busca}
+          onChangeText={setBusca}
+          autoCapitalize="none"
+        />
+
+        {busca.length > 0 && (
+          <TouchableOpacity onPress={() => setBusca('')}>
+            <Ionicons
+              name="close-circle"
+              size={20}
+              color={cores.secondary}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
 
       {!marcaSelecionada && (
         <View>
-
-          <Text style={styles.sectionTitle}>
-            Marcas
-          </Text>
-
-          {carregandoMarcas ? (
-            <View style={styles.loading}>
-              <ActivityIndicator size="large" />
-              <Text style={styles.loadingText}>
-                Carregando marcas...
-              </Text>
-            </View>
-          ) : marcasFiltradas.length === 0 ? (
-            <Text style={styles.emptyText}>
-              Nenhuma marca encontrada.
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{textos.makes}</Text>
+            <Text style={styles.counter}>
+              {marcasFiltradas.length} {textos.found}
             </Text>
-          ) : (
-            marcasFiltradas.map((marca) => (
-              <TouchableOpacity
-                key={marca.codigo}
-                style={styles.item}
-                onPress={() =>
-                  selecionarMarca(marca)
-                }
-              >
+          </View>
 
-                <Text style={styles.itemText}>
-                  {marca.nome}
-                </Text>
-
-                <Text style={styles.arrow}>
-                  ›
-                </Text>
-
-              </TouchableOpacity>
-            ))
-          )}
-
+          {carregandoMarcas
+            ? renderCarregamento(textos.loadingMakes)
+            : marcasFiltradas.length === 0
+            ? renderVazio(erro || textos.noMake)
+            : renderLista(marcasFiltradas, selecionarMarca)}
         </View>
       )}
 
-      {/* MODELOS */}
+      {marcaSelecionada && !modeloSelecionado && (
+        <View>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={voltarParaMarcas}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={19}
+              color={cores.primary}
+            />
+            <Text style={styles.backText}>{textos.backMakes}</Text>
+          </TouchableOpacity>
 
-      {marcaSelecionada &&
-        !modeloSelecionado && (
-          <View>
-
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={voltarParaMarcas}
-            >
-              <Text style={styles.backText}>
-                ← Voltar para marcas
-              </Text>
-            </TouchableOpacity>
-
+          <View style={styles.selectedCard}>
             <Text style={styles.selectedLabel}>
-              Marca selecionada
+              {textos.selectedMake}
             </Text>
-
             <Text style={styles.selectedTitle}>
               {marcaSelecionada.nome}
             </Text>
-
-            <Text style={styles.sectionTitle}>
-              Modelos
-            </Text>
-
-            {carregandoModelos ? (
-              <View style={styles.loading}>
-                <ActivityIndicator size="large" />
-                <Text style={styles.loadingText}>
-                  Carregando modelos...
-                </Text>
-              </View>
-            ) : modelosFiltrados.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Nenhum modelo encontrado.
-              </Text>
-            ) : (
-              modelosFiltrados.map((modelo) => (
-                <TouchableOpacity
-                  key={modelo.codigo}
-                  style={styles.item}
-                  onPress={() =>
-                    selecionarModelo(modelo)
-                  }
-                >
-
-                  <Text style={styles.itemText}>
-                    {modelo.nome}
-                  </Text>
-
-                  <Text style={styles.arrow}>
-                    ›
-                  </Text>
-
-                </TouchableOpacity>
-              ))
-            )}
-
           </View>
-        )}
 
-      {/* ANOS */}
-
-      {marcaSelecionada &&
-        modeloSelecionado && (
-          <View>
-
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={voltarParaModelos}
-            >
-              <Text style={styles.backText}>
-                ← Voltar para modelos
-              </Text>
-            </TouchableOpacity>
-
-            <Text style={styles.selectedLabel}>
-              Modelo selecionado
-            </Text>
-
-            <Text style={styles.selectedTitle}>
-              {modeloSelecionado.nome}
-            </Text>
-
-            <Text style={styles.sectionTitle}>
-              Anos disponíveis
-            </Text>
-
-            {carregandoAnos ? (
-              <View style={styles.loading}>
-                <ActivityIndicator size="large" />
-                <Text style={styles.loadingText}>
-                  Carregando anos...
-                </Text>
-              </View>
-            ) : anosFiltrados.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Nenhum ano encontrado.
-              </Text>
-            ) : (
-              anosFiltrados.map((ano) => (
-                <TouchableOpacity
-                  key={ano.codigo}
-                  style={styles.item}
-                  disabled={carregandoVeiculo}
-                  onPress={() =>
-                    selecionarAno(ano)
-                  }
-                >
-
-                  <Text style={styles.itemText}>
-                    {ano.nome}
-                  </Text>
-
-                  <Text style={styles.arrow}>
-                    ›
-                  </Text>
-
-                </TouchableOpacity>
-              ))
-            )}
-
-          </View>
-        )}
-
-      {/* CARREGANDO VEÍCULO */}
-
-      {carregandoVeiculo && (
-        <View style={styles.vehicleLoading}>
-
-          <ActivityIndicator size="large" />
-
-          <Text style={styles.loadingText}>
-            Buscando informações do veículo...
+          <Text style={styles.sectionTitle}>
+            {textos.availableModels}
           </Text>
 
+          {carregandoModelos
+            ? renderCarregamento(textos.loadingModels)
+            : erro
+            ? renderVazio(erro)
+            : modelosFiltrados.length === 0
+            ? renderVazio(textos.noModel)
+            : renderLista(modelosFiltrados, selecionarModelo)}
         </View>
       )}
 
+      {marcaSelecionada && modeloSelecionado && (
+        <View>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={voltarParaModelos}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={19}
+              color={cores.primary}
+            />
+            <Text style={styles.backText}>{textos.backModels}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.selectedCard}>
+            <Text style={styles.selectedLabel}>
+              {textos.selectedVehicle}
+            </Text>
+            <Text style={styles.selectedTitle}>
+              {marcaSelecionada.nome}
+            </Text>
+            <Text style={styles.selectedModel}>
+              {modeloSelecionado.nome}
+            </Text>
+          </View>
+
+          <Text style={styles.sectionTitle}>{textos.modelYear}</Text>
+
+          {carregandoAnos
+            ? renderCarregamento(textos.loadingYears)
+            : erro
+            ? renderVazio(erro)
+            : anosFiltrados.length === 0
+            ? renderVazio(textos.noYear)
+            : renderLista(anosFiltrados, selecionarAno)}
+        </View>
+      )}
+
+      {carregandoVeiculo && (
+        <View style={styles.vehicleLoading}>
+          <ActivityIndicator size="large" color={cores.primary} />
+          <Text style={styles.loadingText}>
+            {textos.loadingVehicle}
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+function criarEstilos(cores) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: cores.background,
+    },
 
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-  },
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 30,
+    },
 
-  header: {
-    marginTop: 50,
-    marginBottom: 20,
-  },
+    header: {
+      marginBottom: 24,
+    },
 
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111111',
-  },
+    title: {
+      fontSize: 27,
+      fontWeight: 'bold',
+      color: cores.primary,
+    },
 
-  subtitle: {
-    fontSize: 15,
-    color: '#666666',
-    marginTop: 5,
-  },
+    searchContainer: {
+      minHeight: 54,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cores.card,
+      borderWidth: 1,
+      borderColor: cores.border,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      marginBottom: 27,
+    },
 
-  search: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    marginBottom: 25,
-  },
+    search: {
+      flex: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: cores.text,
+    },
 
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginBottom: 15,
-  },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 13,
+    },
 
-  selectedLabel: {
-    fontSize: 13,
-    color: '#888888',
-    marginBottom: 4,
-  },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: cores.text,
+      marginBottom: 13,
+    },
 
-  selectedTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginBottom: 20,
-  },
+    counter: {
+      fontSize: 12,
+      color: cores.secondary,
+    },
 
-  item: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 17,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
+    item: {
+      minHeight: 66,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cores.card,
+      borderWidth: 1,
+      borderColor: cores.border,
+      borderRadius: 13,
+      paddingHorizontal: 13,
+      paddingVertical: 10,
+      marginBottom: 10,
+    },
 
-  itemText: {
-    fontSize: 16,
-    color: '#111111',
-    flex: 1,
-  },
+    itemIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: cores.input,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
 
-  arrow: {
-    fontSize: 24,
-    color: '#888888',
-    marginLeft: 10,
-  },
+    itemText: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: cores.text,
+      marginRight: 8,
+    },
 
-  backButton: {
-    marginBottom: 20,
-  },
+    backButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      paddingVertical: 10,
+      marginBottom: 13,
+    },
 
-  backText: {
-    fontSize: 15,
-    color: '#555555',
-  },
+    backText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: cores.primary,
+      marginLeft: 7,
+    },
 
-  loading: {
-    alignItems: 'center',
-    paddingVertical: 30,
-  },
+    selectedCard: {
+      backgroundColor: cores.card,
+      borderWidth: 1,
+      borderColor: cores.border,
+      borderRadius: 15,
+      padding: 17,
+      marginBottom: 23,
+    },
 
-  vehicleLoading: {
-    alignItems: 'center',
-    paddingVertical: 25,
-    marginBottom: 30,
-  },
+    selectedLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.8,
+      color: cores.secondary,
+      marginBottom: 7,
+    },
 
-  loadingText: {
-    fontSize: 14,
-    color: '#666666',
-    marginTop: 10,
-  },
+    selectedTitle: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      color: cores.primary,
+    },
 
-  emptyText: {
-    fontSize: 15,
-    color: '#777777',
-    textAlign: 'center',
-    paddingVertical: 30,
-  },
+    selectedModel: {
+      fontSize: 15,
+      color: cores.secondary,
+      marginTop: 5,
+    },
 
-});
+    loading: {
+      alignItems: 'center',
+      paddingVertical: 35,
+    },
+
+    loadingText: {
+      fontSize: 14,
+      color: cores.secondary,
+      marginTop: 12,
+      textAlign: 'center',
+    },
+
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: cores.card,
+      borderWidth: 1,
+      borderColor: cores.border,
+      borderRadius: 14,
+      padding: 25,
+      marginBottom: 15,
+    },
+
+    emptyText: {
+      fontSize: 14,
+      color: cores.secondary,
+      textAlign: 'center',
+      marginTop: 10,
+      lineHeight: 21,
+    },
+
+    vehicleLoading: {
+      alignItems: 'center',
+      paddingVertical: 25,
+      marginTop: 10,
+    },
+  });
+}

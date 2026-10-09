@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 import {
@@ -7,9 +8,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useSettings } from '../context/SettingsContext';
 
 import {
   adicionarFavorito,
@@ -20,455 +26,710 @@ import {
 export default function VehicleDetailsScreen({ route }) {
   const { veiculo } = route.params;
 
-  const [abaSelecionada, setAbaSelecionada] =
-    useState('sobre');
+  const { cores, idioma } = useSettings();
+  const insets = useSafeAreaInsets();
+  const styles = criarEstilos(cores);
 
-  const [favoritado, setFavoritado] =
-    useState(false);
+  const t = (pt, en) => idioma === 'en' ? en : pt;
 
-  const [carregandoFavorito, setCarregandoFavorito] =
-    useState(true);
+  const [abaSelecionada, setAbaSelecionada] = useState('sobre');
+  const [favoritado, setFavoritado] = useState(false);
+  const [carregandoFavorito, setCarregandoFavorito] = useState(true);
+  const [alterandoFavorito, setAlterandoFavorito] = useState(false);
 
-  const [alterandoFavorito, setAlterandoFavorito] =
-    useState(false);
-
-  // Verifica se o veículo já está salvo no banco
   useEffect(() => {
+    let ativo = true;
+
     async function verificarFavorito() {
       try {
-        const usuarioId =
-          await AsyncStorage.getItem('usuarioLogado');
+        const usuarioId = await AsyncStorage.getItem('usuarioLogado');
 
         if (!usuarioId) {
-          setFavoritado(false);
+          if (ativo) setFavoritado(false);
           return;
         }
 
-        const favoritos = await listarFavoritos(
-          Number(usuarioId)
-        );
+        const favoritos = await listarFavoritos(Number(usuarioId));
 
-        const jaFavoritado = favoritos.some(
-          (item) =>
-            item.codigo_fipe === veiculo.CodigoFipe
-        );
-
-        setFavoritado(jaFavoritado);
+        if (ativo) {
+          setFavoritado(
+            favoritos.some(
+              (item) => item.codigo_fipe === veiculo.CodigoFipe
+            )
+          );
+        }
       } catch (error) {
-        console.error(
-          'Erro ao verificar favorito:',
-          error
-        );
-
+        console.error('Erro ao verificar favorito:', error);
         Alert.alert(
-          'Erro',
-          'Não foi possível consultar os favoritos.'
+          t('Erro', 'Error'),
+          t(
+            'Não foi possível consultar os favoritos.',
+            'Could not check favorites.'
+          )
         );
       } finally {
-        setCarregandoFavorito(false);
+        if (ativo) setCarregandoFavorito(false);
       }
     }
 
     verificarFavorito();
-  }, [veiculo.CodigoFipe]);
 
-  // Adiciona ou remove o veículo dos favoritos
+    return () => {
+      ativo = false;
+    };
+  }, [veiculo.CodigoFipe, idioma]);
+
   async function alternarFavorito() {
-    if (alterandoFavorito || carregandoFavorito) {
-      return;
-    }
+    if (alterandoFavorito || carregandoFavorito) return;
 
     setAlterandoFavorito(true);
 
     try {
-      const usuarioId =
-        await AsyncStorage.getItem('usuarioLogado');
+      const usuarioId = await AsyncStorage.getItem('usuarioLogado');
 
       if (!usuarioId) {
         Alert.alert(
-          'Atenção',
-          'Faça login para salvar seus favoritos.'
+          t('Atenção', 'Attention'),
+          t(
+            'Faça login para salvar seus favoritos.',
+            'Log in to save your favorites.'
+          )
         );
         return;
       }
 
       if (favoritado) {
-        await removerFavorito(
-          Number(usuarioId),
-          veiculo.CodigoFipe
-        );
-
+        await removerFavorito(Number(usuarioId), veiculo.CodigoFipe);
         setFavoritado(false);
 
         Alert.alert(
-          'Favorito removido',
-          'Veículo removido dos favoritos.'
+          t('Favorito removido', 'Favorite removed'),
+          t(
+            'Veículo removido dos favoritos.',
+            'Vehicle removed from favorites.'
+          )
         );
       } else {
-        await adicionarFavorito(
-          Number(usuarioId),
-          veiculo
-        );
-
+        await adicionarFavorito(Number(usuarioId), veiculo);
         setFavoritado(true);
 
         Alert.alert(
-          'Favorito adicionado',
-          'Veículo salvo nos favoritos.'
+          t('Favorito adicionado', 'Favorite added'),
+          t(
+            'Veículo salvo nos favoritos.',
+            'Vehicle saved to favorites.'
+          )
         );
       }
     } catch (error) {
-      console.error(
-        'Erro ao alterar favorito:',
-        error
-      );
+      console.error('Erro ao alterar favorito:', error);
 
       Alert.alert(
-        'Erro',
-        'Não foi possível alterar o favorito.'
+        t('Erro', 'Error'),
+        t(
+          'Não foi possível alterar o favorito.',
+          'Could not update the favorite.'
+        )
       );
     } finally {
       setAlterandoFavorito(false);
     }
   }
 
+  function renderEspecificacao(rotulo, valor, icone) {
+    return (
+      <View style={styles.spec} key={rotulo}>
+        <View style={styles.specInfo}>
+          <View style={styles.specIcon}>
+            <Ionicons name={icone} size={19} color={cores.primary} />
+          </View>
+
+          <Text style={styles.specLabel}>{rotulo}</Text>
+        </View>
+
+        <Text style={styles.specValue}>
+          {valor || t('Não informado', 'Not provided')}
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container}>
-
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.scrollContent,
+        {
+          paddingTop: Math.max(insets.top, 16) + 12,
+          paddingBottom: Math.max(insets.bottom, 20) + 24,
+        },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
+        <View style={styles.headerIcon}>
+          <Ionicons
+            name="car-sport"
+            size={34}
+            color={cores.primary}
+          />
+        </View>
 
-        <Text style={styles.brand}>
-          {veiculo.Marca}
+        <Text style={styles.brand}>{veiculo.Marca}</Text>
+        <Text style={styles.title}>{veiculo.Modelo}</Text>
+      </View>
+
+      <View style={styles.priceCard}>
+        <Text style={styles.priceLabel}>
+          {t('Valor de referência FIPE', 'FIPE reference price')}
         </Text>
 
-        <Text style={styles.title}>
-          {veiculo.Modelo}
-        </Text>
-
-        <Text style={styles.price}>
-          {veiculo.Valor}
-        </Text>
-
+        <Text style={styles.price}>{veiculo.Valor}</Text>
       </View>
 
       <TouchableOpacity
-        style={styles.favoriteButton}
+        style={[
+          styles.favoriteButton,
+          favoritado && styles.favoriteButtonActive,
+          (carregandoFavorito || alterandoFavorito) &&
+            styles.favoriteButtonDisabled,
+        ]}
         onPress={alternarFavorito}
         disabled={carregandoFavorito || alterandoFavorito}
+        activeOpacity={0.8}
       >
-        <Text style={styles.favoriteText}>
-          {carregandoFavorito
-            ? 'Verificando favorito...'
-            : alterandoFavorito
-              ? 'Aguarde...'
-              : favoritado
-                ? '★ Remover dos favoritos'
-                : '☆ Adicionar aos favoritos'}
-        </Text>
+        {carregandoFavorito || alterandoFavorito ? (
+          <ActivityIndicator
+            color={favoritado ? '#FFFFFF' : cores.primary}
+          />
+        ) : (
+          <>
+            <Ionicons
+              name={favoritado ? 'heart' : 'heart-outline'}
+              size={21}
+              color={favoritado ? '#FFFFFF' : cores.primary}
+            />
+
+            <Text
+              style={[
+                styles.favoriteText,
+                favoritado && styles.favoriteTextActive,
+              ]}
+            >
+              {favoritado
+                ? t('Remover dos favoritos', 'Remove from favorites')
+                : t('Adicionar aos favoritos', 'Add to favorites')}
+            </Text>
+          </>
+        )}
       </TouchableOpacity>
 
       <View style={styles.mainInfo}>
-
         <View style={styles.info}>
-          <Text style={styles.label}>
-            Ano
-          </Text>
+          <View style={styles.infoIcon}>
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color={cores.primary}
+            />
+          </View>
 
+          <Text style={styles.label}>{t('Ano-modelo', 'Model year')}</Text>
           <Text style={styles.value}>
-            {veiculo.AnoModelo}
+            {veiculo.AnoModelo || t('Não informado', 'Not provided')}
           </Text>
         </View>
 
-        <View style={styles.info}>
-          <Text style={styles.label}>
-            Combustível
-          </Text>
+        <View style={styles.infoDivider} />
 
+        <View style={styles.info}>
+          <View style={styles.infoIcon}>
+            <Ionicons
+              name="water-outline"
+              size={20}
+              color={cores.primary}
+            />
+          </View>
+
+          <Text style={styles.label}>{t('Combustível', 'Fuel')}</Text>
           <Text style={styles.value}>
-            {veiculo.Combustivel}
+            {veiculo.Combustivel || t('Não informado', 'Not provided')}
           </Text>
         </View>
-
       </View>
 
       <View style={styles.tabs}>
-
         <TouchableOpacity
           style={[
             styles.tab,
-            abaSelecionada === 'sobre' &&
-              styles.tabAtiva,
+            abaSelecionada === 'sobre' && styles.tabAtiva,
           ]}
-          onPress={() =>
-            setAbaSelecionada('sobre')
-          }
+          onPress={() => setAbaSelecionada('sobre')}
         >
+          <Ionicons
+            name="information-circle-outline"
+            size={18}
+            color={
+              abaSelecionada === 'sobre'
+                ? cores.primary
+                : cores.secondary
+            }
+          />
+
           <Text
             style={[
               styles.tabText,
-              abaSelecionada === 'sobre' &&
-                styles.tabTextAtiva,
+              abaSelecionada === 'sobre' && styles.tabTextAtiva,
             ]}
           >
-            Sobre
+            {t('Sobre', 'About')}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.tab,
-            abaSelecionada === 'especificacoes' &&
-              styles.tabAtiva,
+            abaSelecionada === 'especificacoes' && styles.tabAtiva,
           ]}
-          onPress={() =>
-            setAbaSelecionada('especificacoes')
-          }
+          onPress={() => setAbaSelecionada('especificacoes')}
         >
+          <Ionicons
+            name="list-outline"
+            size={18}
+            color={
+              abaSelecionada === 'especificacoes'
+                ? cores.primary
+                : cores.secondary
+            }
+          />
+
           <Text
             style={[
               styles.tabText,
-              abaSelecionada === 'especificacoes' &&
-                styles.tabTextAtiva,
+              abaSelecionada === 'especificacoes' && styles.tabTextAtiva,
             ]}
           >
-            Especificações
+            {t('Especificações', 'Specifications')}
           </Text>
         </TouchableOpacity>
-
       </View>
 
       {abaSelecionada === 'sobre' && (
         <View style={styles.content}>
-
           <Text style={styles.sectionTitle}>
-            Sobre o veículo
+            {t('Sobre o veículo', 'About the vehicle')}
           </Text>
 
           <Text style={styles.description}>
-            {veiculo.Marca}{' '}
-            {veiculo.Modelo}, ano{' '}
-            {veiculo.AnoModelo}.
+            {t(
+              'Confira as informações de referência do veículo selecionado.',
+              'Check the reference information for the selected vehicle.'
+            )}
           </Text>
 
-          <Text style={styles.description}>
-            Valor de referência segundo a
-            tabela FIPE: {veiculo.Valor}.
-          </Text>
+          <View style={styles.aboutCard}>
+            <Ionicons
+              name="car-outline"
+              size={24}
+              color={cores.primary}
+            />
 
+            <View style={styles.aboutTextContainer}>
+              <Text style={styles.aboutTitle}>
+                {veiculo.Marca} {veiculo.Modelo}
+              </Text>
+
+              <Text style={styles.aboutDescription}>
+                {t('Modelo ', 'Model ')}
+                {veiculo.AnoModelo}
+                {t(', com valor de referência de ', ', with a reference price of ')}
+                {veiculo.Valor}
+                {t(
+                  ', conforme a consulta da tabela FIPE.',
+                  ', according to the FIPE table.'
+                )}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.referenceCard}>
+            <Ionicons
+              name="calendar-clear-outline"
+              size={20}
+              color={cores.primary}
+            />
+
+            <View style={styles.referenceTextContainer}>
+              <Text style={styles.referenceLabel}>
+                {t('Mês de referência', 'Reference month')}
+              </Text>
+
+              <Text style={styles.referenceValue}>
+                {veiculo.MesReferencia ||
+                  t('Não informado', 'Not provided')}
+              </Text>
+            </View>
+          </View>
         </View>
       )}
 
       {abaSelecionada === 'especificacoes' && (
         <View style={styles.content}>
-
           <Text style={styles.sectionTitle}>
-            Especificações
+            {t('Especificações', 'Specifications')}
           </Text>
 
-          <View style={styles.spec}>
-            <Text style={styles.specLabel}>
-              Marca
-            </Text>
+          <View style={styles.specCard}>
+            {renderEspecificacao(
+              t('Marca', 'Brand'),
+              veiculo.Marca,
+              'business-outline'
+            )}
 
-            <Text style={styles.specValue}>
-              {veiculo.Marca}
-            </Text>
+            {renderEspecificacao(
+              t('Modelo', 'Model'),
+              veiculo.Modelo,
+              'car-outline'
+            )}
+
+            {renderEspecificacao(
+              t('Ano-modelo', 'Model year'),
+              veiculo.AnoModelo,
+              'calendar-outline'
+            )}
+
+            {renderEspecificacao(
+              t('Combustível', 'Fuel'),
+              veiculo.Combustivel,
+              'water-outline'
+            )}
+
+            {renderEspecificacao(
+              t('Código FIPE', 'FIPE code'),
+              veiculo.CodigoFipe,
+              'barcode-outline'
+            )}
+
+            {renderEspecificacao(
+              t('Mês de referência', 'Reference month'),
+              veiculo.MesReferencia,
+              'calendar-clear-outline'
+            )}
           </View>
-
-          <View style={styles.spec}>
-            <Text style={styles.specLabel}>
-              Modelo
-            </Text>
-
-            <Text style={styles.specValue}>
-              {veiculo.Modelo}
-            </Text>
-          </View>
-
-          <View style={styles.spec}>
-            <Text style={styles.specLabel}>
-              Ano
-            </Text>
-
-            <Text style={styles.specValue}>
-              {veiculo.AnoModelo}
-            </Text>
-          </View>
-
-          <View style={styles.spec}>
-            <Text style={styles.specLabel}>
-              Combustível
-            </Text>
-
-            <Text style={styles.specValue}>
-              {veiculo.Combustivel}
-            </Text>
-          </View>
-
-          <View style={styles.spec}>
-            <Text style={styles.specLabel}>
-              Código FIPE
-            </Text>
-
-            <Text style={styles.specValue}>
-              {veiculo.CodigoFipe}
-            </Text>
-          </View>
-
-          <View style={styles.spec}>
-            <Text style={styles.specLabel}>
-              Mês de referência
-            </Text>
-
-            <Text style={styles.specValue}>
-              {veiculo.MesReferencia}
-            </Text>
-          </View>
-
         </View>
       )}
-
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+function criarEstilos(cores) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: cores.background,
+    },
 
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-  },
+    scrollContent: {
+      paddingHorizontal: 20,
+    },
 
-  header: {
-    marginTop: 50,
-    marginBottom: 25,
-  },
+    header: {
+      alignItems: 'center',
+      marginBottom: 22,
+    },
 
-  brand: {
-    fontSize: 15,
-    color: '#666666',
-    fontWeight: '600',
-  },
+    headerIcon: {
+      width: 70,
+      height: 70,
+      borderRadius: 22,
+      backgroundColor: cores.input,
+      borderWidth: 1,
+      borderColor: cores.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 15,
+    },
 
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginTop: 5,
-  },
+    brand: {
+      fontSize: 15,
+      color: cores.secondary,
+      fontWeight: '600',
+    },
 
-  price: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginTop: 12,
-  },
+    title: {
+      fontSize: 25,
+      fontWeight: 'bold',
+      color: cores.primary,
+      textAlign: 'center',
+      marginTop: 5,
+    },
 
-  favoriteButton: {
-    marginBottom: 25,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
+    priceCard: {
+      backgroundColor: cores.card,
+      borderRadius: 18,
+      padding: 20,
+      marginBottom: 14,
+      elevation: 2,
+      shadowColor: '#000000',
+      shadowOpacity: 0.05,
+      shadowRadius: 5,
+      shadowOffset: { width: 0, height: 2 },
+    },
 
-  favoriteText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222222',
-  },
+    priceLabel: {
+      fontSize: 14,
+      color: cores.secondary,
+    },
 
-  mainInfo: {
-    flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 25,
-  },
+    price: {
+      fontSize: 27,
+      fontWeight: 'bold',
+      color: cores.primary,
+      marginTop: 7,
+    },
 
-  info: {
-    flex: 1,
-  },
+    priceFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 10,
+      gap: 6,
+    },
 
-  label: {
-    fontSize: 13,
-    color: '#777777',
-  },
+    priceFooterText: {
+      fontSize: 12,
+      color: cores.secondary,
+    },
 
-  value: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111111',
-    marginTop: 4,
-  },
+    favoriteButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 9,
+      backgroundColor: cores.card,
+      borderWidth: 1,
+      borderColor: cores.border,
+      borderRadius: 14,
+      paddingVertical: 14,
+      marginBottom: 18,
+    },
 
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-    marginBottom: 25,
-  },
+    favoriteButtonActive: {
+      backgroundColor: cores.primary,
+      borderColor: cores.primary,
+    },
 
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
+    favoriteButtonDisabled: {
+      opacity: 0.7,
+    },
 
-  tabAtiva: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#111111',
-  },
+    favoriteText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: cores.primary,
+    },
 
-  tabText: {
-    fontSize: 15,
-    color: '#777777',
-  },
+    favoriteTextActive: {
+      color: '#FFFFFF',
+    },
 
-  tabTextAtiva: {
-    color: '#111111',
-    fontWeight: 'bold',
-  },
+    mainInfo: {
+      flexDirection: 'row',
+      backgroundColor: cores.card,
+      borderRadius: 18,
+      padding: 18,
+      marginBottom: 24,
+      elevation: 1,
+      shadowColor: '#000000',
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+    },
 
-  content: {
-    marginBottom: 40,
-  },
+    info: {
+      flex: 1,
+      alignItems: 'center',
+    },
 
-  sectionTitle: {
-    fontSize: 21,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginBottom: 15,
-  },
+    infoIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 13,
+      backgroundColor: cores.input,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 9,
+    },
 
-  description: {
-    fontSize: 15,
-    color: '#666666',
-    lineHeight: 22,
-    marginBottom: 12,
-  },
+    infoDivider: {
+      width: 1,
+      backgroundColor: cores.border,
+      marginHorizontal: 12,
+    },
 
-  spec: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
+    label: {
+      fontSize: 12,
+      color: cores.secondary,
+      textAlign: 'center',
+    },
 
-  specLabel: {
-    fontSize: 15,
-    color: '#666666',
-  },
+    value: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: cores.text,
+      marginTop: 5,
+      textAlign: 'center',
+    },
 
-  specValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111111',
-    maxWidth: '55%',
-    textAlign: 'right',
-  },
+    tabs: {
+      flexDirection: 'row',
+      backgroundColor: cores.input,
+      borderRadius: 13,
+      padding: 4,
+      marginBottom: 20,
+    },
 
-});
+    tab: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingVertical: 12,
+      paddingHorizontal: 4,
+      borderRadius: 10,
+    },
+
+    tabAtiva: {
+      backgroundColor: cores.card,
+      elevation: 2,
+    },
+
+    tabText: {
+      fontSize: 13,
+      color: cores.secondary,
+      fontWeight: '500',
+    },
+
+    tabTextAtiva: {
+      color: cores.primary,
+      fontWeight: '700',
+    },
+
+    content: {
+      marginBottom: 20,
+    },
+
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: cores.primary,
+      marginBottom: 8,
+    },
+
+    description: {
+      fontSize: 14,
+      color: cores.secondary,
+      lineHeight: 21,
+      marginBottom: 16,
+    },
+
+    aboutCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: cores.card,
+      borderRadius: 16,
+      padding: 17,
+      gap: 13,
+      marginBottom: 13,
+    },
+
+    aboutTextContainer: {
+      flex: 1,
+    },
+
+    aboutTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: cores.text,
+      marginBottom: 7,
+    },
+
+    aboutDescription: {
+      fontSize: 13,
+      color: cores.secondary,
+      lineHeight: 20,
+    },
+
+    referenceCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cores.card,
+      borderRadius: 15,
+      padding: 17,
+      gap: 12,
+    },
+
+    referenceTextContainer: {
+      flex: 1,
+    },
+
+    referenceLabel: {
+      fontSize: 12,
+      color: cores.secondary,
+    },
+
+    referenceValue: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: cores.text,
+      marginTop: 4,
+    },
+
+    specCard: {
+      backgroundColor: cores.card,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 4,
+    },
+
+    spec: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: cores.border,
+      gap: 12,
+    },
+
+    specInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      gap: 9,
+    },
+
+    specIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      backgroundColor: cores.input,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    specLabel: {
+      fontSize: 13,
+      color: cores.secondary,
+      flexShrink: 1,
+    },
+
+    specValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: cores.text,
+      maxWidth: '53%',
+      textAlign: 'right',
+    },
+  });
+}

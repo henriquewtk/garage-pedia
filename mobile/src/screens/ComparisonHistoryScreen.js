@@ -1,8 +1,5 @@
-import React, {
-  useState,
-  useCallback,
-} from 'react';
 
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,41 +7,40 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-
 import { useFocusEffect } from '@react-navigation/native';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import * as SQLite from 'expo-sqlite';
 
-export default function ComparisonHistoryScreen({
-  navigation,
-  route,
-}) {
-  // Se receber uma comparação, mostra os detalhes.
-  // Caso contrário, mostra a lista do histórico.
+import { useSettings } from '../context/SettingsContext';
+
+export default function ComparisonHistoryScreen({ navigation, route }) {
   const comparacaoSelecionada = route.params?.comparacao;
 
   const [comparacoes, setComparacoes] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
+  const { cores, idioma } = useSettings();
+  const insets = useSafeAreaInsets();
+  const styles = criarEstilos(cores);
+
+  const t = (pt, en) => (idioma === 'en' ? en : pt);
+
   const carregarComparacoes = useCallback(async () => {
     try {
       setCarregando(true);
 
-      const usuarioId = await AsyncStorage.getItem(
-        'usuarioLogado'
-      );
+      const usuarioId = await AsyncStorage.getItem('usuarioLogado');
 
       if (!usuarioId) {
         setComparacoes([]);
         return;
       }
 
-      const db = await SQLite.openDatabaseAsync(
-        'garagepedia.db'
-      );
+      const db = await SQLite.openDatabaseAsync('garagepedia.db');
 
       const dados = await db.getAllAsync(
         `SELECT *
@@ -57,15 +53,17 @@ export default function ComparisonHistoryScreen({
       setComparacoes(dados);
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
-
       Alert.alert(
-        'Erro',
-        'Não foi possível carregar o histórico.'
+        t('Erro', 'Error'),
+        t(
+          'Não foi possível carregar o histórico.',
+          'Could not load the history.'
+        )
       );
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [idioma]);
 
   useFocusEffect(
     useCallback(() => {
@@ -77,33 +75,32 @@ export default function ComparisonHistoryScreen({
 
   async function excluirComparacao(comparacaoId) {
     Alert.alert(
-      'Excluir comparação',
-      'Deseja remover esta comparação do histórico?',
+      t('Excluir comparação', 'Delete comparison'),
+      t(
+        'Deseja remover esta comparação do histórico?',
+        'Do you want to remove this comparison from the history?'
+      ),
       [
         {
-          text: 'Cancelar',
+          text: t('Cancelar', 'Cancel'),
           style: 'cancel',
         },
         {
-          text: 'Excluir',
+          text: t('Excluir', 'Delete'),
           style: 'destructive',
           onPress: async () => {
             try {
-              const usuarioId = await AsyncStorage.getItem(
-                'usuarioLogado'
-              );
+              const usuarioId = await AsyncStorage.getItem('usuarioLogado');
 
               if (!usuarioId) {
                 Alert.alert(
-                  'Atenção',
-                  'Usuário não identificado.'
+                  t('Atenção', 'Notice'),
+                  t('Usuário não identificado.', 'User not identified.')
                 );
                 return;
               }
 
-              const db = await SQLite.openDatabaseAsync(
-                'garagepedia.db'
-              );
+              const db = await SQLite.openDatabaseAsync('garagepedia.db');
 
               await db.runAsync(
                 `DELETE FROM comparacoes
@@ -116,10 +113,12 @@ export default function ComparisonHistoryScreen({
               await carregarComparacoes();
             } catch (error) {
               console.error('Erro ao excluir comparação:', error);
-
               Alert.alert(
-                'Erro',
-                'Não foi possível excluir a comparação.'
+                t('Erro', 'Error'),
+                t(
+                  'Não foi possível excluir a comparação.',
+                  'Could not delete the comparison.'
+                )
               );
             }
           },
@@ -128,476 +127,705 @@ export default function ComparisonHistoryScreen({
     );
   }
 
-  // TELA DE DETALHES DA COMPARAÇÃO
+  function formatarValor(valor) {
+    if (valor === null || valor === undefined || valor === '') {
+      return null;
+    }
+
+    if (typeof valor === 'number') {
+      return valor;
+    }
+
+    const texto = String(valor).trim();
+
+    if (texto.includes('R$')) {
+      const numero = Number(
+        texto
+          .replace(/[^\d,.-]/g, '')
+          .replace(/\./g, '')
+          .replace(',', '.')
+      );
+
+      return Number.isFinite(numero) ? numero : null;
+    }
+
+    const numero = Number(texto);
+    return Number.isFinite(numero) ? numero : null;
+  }
+
+  
+function exibirValor(valor) {
+  const numero = formatarValor(valor);
+
+  if (numero === null) {
+    return t('Não informado', 'Not available');
+  }
+
+  return numero.toLocaleString(
+    idioma === 'en' ? 'en-US' : 'pt-BR',
+    {
+      style: 'currency',
+      currency: 'BRL',
+    }
+  );
+}
+
+  function exibirData(data) {
+    if (!data) {
+      return t('Data não disponível', 'Date unavailable');
+    }
+
+    const dataConvertida = new Date(data);
+
+    if (Number.isNaN(dataConvertida.getTime())) {
+      return t('Data não disponível', 'Date unavailable');
+    }
+
+    return dataConvertida.toLocaleDateString(
+      idioma === 'en' ? 'en-US' : 'pt-BR'
+    );
+  }
+
+  function Veiculo({ numero, comparacao }) {
+    const marca = comparacao[`veiculo${numero}_marca`];
+    const modelo = comparacao[`veiculo${numero}_modelo`];
+    const ano = comparacao[`veiculo${numero}_ano`];
+    const codigo = comparacao[`veiculo${numero}_codigo_fipe`];
+    const valor = comparacao[`veiculo${numero}_valor`];
+    const combustivel = comparacao[`veiculo${numero}_combustivel`];
+
+    return (
+      <View style={styles.vehicleCard}>
+        <View style={styles.vehicleIcon}>
+          <Ionicons
+            name="car-sport-outline"
+            size={26}
+            color={cores.primary}
+          />
+        </View>
+
+        <Text style={styles.vehicleTitle}>
+          {t('Veículo', 'Vehicle')} {numero}
+        </Text>
+
+        <Text style={styles.label}>{t('Marca', 'Make')}</Text>
+        <Text style={styles.value}>
+          {marca || t('Não informada', 'Not available')}
+        </Text>
+
+        <Text style={styles.label}>{t('Modelo', 'Model')}</Text>
+        <Text style={styles.value}>
+          {modelo || t('Não informado', 'Not available')}
+        </Text>
+
+        <Text style={styles.label}>{t('Ano', 'Year')}</Text>
+        <Text style={styles.value}>
+          {ano || t('Não informado', 'Not available')}
+        </Text>
+
+        <Text style={styles.label}>{t('Código FIPE', 'FIPE code')}</Text>
+        <Text style={styles.value}>
+          {codigo || t('Não informado', 'Not available')}
+        </Text>
+
+        <Text style={styles.label}>{t('Preço FIPE', 'FIPE price')}</Text>
+        <Text style={styles.vehiclePrice}>{exibirValor(valor)}</Text>
+
+        <Text style={styles.label}>{t('Combustível', 'Fuel')}</Text>
+        <Text style={styles.value}>
+          {combustivel || t('Não informado', 'Not available')}
+        </Text>
+      </View>
+    );
+  }
+
+  const paddingSuperior = Math.max(insets.top, 12) + 12;
+
   if (comparacaoSelecionada) {
     const comparacao = comparacaoSelecionada;
+    const valor1 = formatarValor(comparacao.veiculo1_valor);
+    const valor2 = formatarValor(comparacao.veiculo2_valor);
 
-    function Veiculo({ numero }) {
-      const marca = comparacao[`veiculo${numero}_marca`];
-      const modelo = comparacao[`veiculo${numero}_modelo`];
-      const ano = comparacao[`veiculo${numero}_ano`];
-      const codigo = comparacao[`veiculo${numero}_codigo_fipe`];
+    const valoresValidos = valor1 !== null && valor2 !== null;
 
-      return (
-        <View style={styles.vehicleCard}>
-          <Text style={styles.vehicleTitle}>
-            Veículo {numero}
-          </Text>
+    const diferenca = valoresValidos
+      ? Math.abs(valor1 - valor2)
+      : null;
 
-          <Text style={styles.label}>Marca</Text>
-          <Text style={styles.value}>{marca}</Text>
+    let textoMaisBarato = '';
 
-          <Text style={styles.label}>Modelo</Text>
-          <Text style={styles.value}>{modelo}</Text>
-
-          <Text style={styles.label}>Ano</Text>
-          <Text style={styles.value}>{ano}</Text>
-
-          <Text style={styles.label}>Código FIPE</Text>
-          <Text style={styles.value}>{codigo}</Text>
-          <Text style={styles.label}>Preço FIPE</Text>
-
-            <Text style={styles.price}>
-            {comparacao[`veiculo${numero}_valor`] || 'Não informado'}
-            </Text>
-
-            <Text style={styles.label}>Combustível</Text>
-
-            <Text style={styles.value}>
-            {comparacao[`veiculo${numero}_combustivel`] || 'Não informado'}
-            </Text>
-            </View>
-      );
+    if (valoresValidos && valor1 !== valor2) {
+      textoMaisBarato =
+        valor1 < valor2
+          ? comparacao.veiculo1_modelo
+          : comparacao.veiculo2_modelo;
     }
 
     return (
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backText}>‹ Voltar ao histórico</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.title}>
-            Comparação de veículos
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: paddingSuperior },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={20} color={cores.primary} />
+          <Text style={styles.backText}>
+            {t('Voltar ao histórico', 'Back to history')}
           </Text>
+        </TouchableOpacity>
 
-          <Text style={styles.subtitle}>
-            Confira os dados dos veículos selecionados.
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            {t('Comparação de veículos', 'Vehicle comparison')}
           </Text>
         </View>
 
         <View style={styles.comparison}>
-          <Veiculo numero={1} />
+          <Veiculo numero={1} comparacao={comparacao} />
 
           <View style={styles.vsContainer}>
             <Text style={styles.vs}>VS</Text>
           </View>
 
-          <Veiculo numero={2} />
+          <Veiculo numero={2} comparacao={comparacao} />
         </View>
-        
+
         <View style={styles.priceComparison}>
-  <Text style={styles.priceComparisonTitle}>
-    Diferença de preço
-  </Text>
+          <View style={styles.priceIcon}>
+            <Ionicons name="cash-outline" size={23} color={cores.primary} />
+          </View>
 
-  <Text style={styles.priceDifference}>
-    {(() => {
-      const valor1 = Number(
-        String(comparacao.veiculo1_valor || '')
-          .replace(/[^\d,]/g, '')
-          .replace(',', '.')
-      );
+          <Text style={styles.priceComparisonTitle}>
+            {t('Diferença de preço', 'Price difference')}
+          </Text>
 
-      const valor2 = Number(
-        String(comparacao.veiculo2_valor || '')
-          .replace(/[^\d,]/g, '')
-          .replace(',', '.')
-      );
+          <Text style={styles.priceDifference}>
+            {diferenca === null
+              ? t('Valores FIPE indisponíveis', 'FIPE prices unavailable')
+              : exibirValor(diferenca)}
+          </Text>
 
-      if (!valor1 || !valor2) {
-        return 'Valores FIPE indisponíveis';
-      }
+          {valoresValidos && valor1 === valor2 && (
+            <Text style={styles.comparisonNote}>
+              {t(
+                'Os dois veículos possuem o mesmo valor.',
+                'Both vehicles have the same price.'
+              )}
+            </Text>
+          )}
 
-      return Math.abs(valor1 - valor2).toLocaleString(
-        'pt-BR',
-        {
-          style: 'currency',
-          currency: 'BRL',
-        }
-      );
-    })()}
-  </Text>
+          {!!textoMaisBarato && (
+            <View style={styles.cheaperContainer}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={18}
+                color={cores.primary}
+              />
+              <Text style={styles.cheaperText}>
+                {t('Menor valor:', 'Lower price:')} {textoMaisBarato}
+              </Text>
+            </View>
+          )}
+        </View>
 
-  {(() => {
-    const valor1 = Number(
-      String(comparacao.veiculo1_valor || '')
-        .replace(/[^\d,]/g, '')
-        .replace(',', '.')
-    );
-
-    const valor2 = Number(
-      String(comparacao.veiculo2_valor || '')
-        .replace(/[^\d,]/g, '')
-        .replace(',', '.')
-    );
-
-    if (!valor1 || !valor2 || valor1 === valor2) {
-      return null;
-    }
-
-    const maisBarato = valor1 < valor2
-      ? comparacao.veiculo1_modelo
-      : comparacao.veiculo2_modelo;
-
-    return (
-      <Text style={styles.cheaperText}>
-        Veículo mais barato: {maisBarato}
-      </Text>
-    );
-  })()}
-</View>
-
-        <Text style={styles.date}>
-          Comparação salva em:{' '}
-          {comparacao.criado_em
-            ? new Date(comparacao.criado_em).toLocaleDateString('pt-BR')
-            : 'Data não disponível'}
-        </Text>
+        <View style={styles.dateContainer}>
+          <Ionicons
+            name="calendar-outline"
+            size={18}
+            color={cores.secondary}
+          />
+          <Text style={styles.date}>
+            {t('Comparação salva em:', 'Comparison saved on:')}{' '}
+            {exibirData(comparacao.criado_em)}
+          </Text>
+        </View>
       </ScrollView>
     );
   }
 
-  // TELA PRINCIPAL DO HISTÓRICO
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: paddingSuperior },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="arrow-back" size={20} color={cores.primary} />
+        <Text style={styles.backText}>{t('Voltar', 'Back')}</Text>
+      </TouchableOpacity>
+
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Text style={styles.backText}>‹ Voltar</Text>
-        </TouchableOpacity>
-
         <Text style={styles.title}>
-          Histórico de Comparações
-        </Text>
-
-        <Text style={styles.subtitle}>
-          Consulte suas comparações salvas.
+          {t('Histórico de Comparações', 'Comparison History')}
         </Text>
       </View>
 
       {carregando ? (
-        <Text style={styles.message}>
-          Carregando histórico...
-        </Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={cores.primary} />
+          <Text style={styles.message}>
+            {t('Carregando histórico...', 'Loading history...')}
+          </Text>
+        </View>
       ) : comparacoes.length === 0 ? (
         <View style={styles.emptyContainer}>
+          <View style={styles.emptyIcon}>
+            <Ionicons
+              name="git-compare-outline"
+              size={42}
+              color={cores.primary}
+            />
+          </View>
+
           <Text style={styles.emptyTitle}>
-            Nenhuma comparação salva
+            {t('Nenhuma comparação salva', 'No saved comparisons')}
           </Text>
 
           <Text style={styles.emptyText}>
-            Suas comparações salvas aparecerão aqui.
+            {t(
+              'Suas comparações salvas aparecerão aqui. Compare dois veículos para começar seu histórico.',
+              'Your saved comparisons will appear here. Compare two vehicles to start your history.'
+            )}
           </Text>
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate('Comparar')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="git-compare-outline"
+              size={18}
+              color="#FFFFFF"
+            />
+            <Text style={styles.primaryButtonText}>
+              {t('Comparar veículos', 'Compare vehicles')}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (
-        comparacoes.map((comparacao) => (
-          <View
-            key={comparacao.id}
-            style={styles.card}
-          >
-            <Text style={styles.cardTitle}>
-              Comparação #{comparacao.id}
-            </Text>
+        <>
+          <Text style={styles.counter}>
+            {comparacoes.length}{' '}
+            {comparacoes.length === 1
+              ? t('comparação salva', 'saved comparison')
+              : t('comparações salvas', 'saved comparisons')}
+          </Text>
 
-            <View style={styles.vehicles}>
-              <View style={styles.vehicle}>
-                <Text style={styles.brand}>
-                  {comparacao.veiculo1_marca}
-                </Text>
+          {comparacoes.map((comparacao) => (
+            <View key={comparacao.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardIcon}>
+                  <Ionicons
+                    name="git-compare-outline"
+                    size={22}
+                    color={cores.primary}
+                  />
+                </View>
 
-                <Text style={styles.model}>
-                  {comparacao.veiculo1_modelo}
-                </Text>
-
-                <Text style={styles.year}>
-                  Ano {comparacao.veiculo1_ano}
-                </Text>
+                <View style={styles.cardHeaderInfo}>
+                  <Text style={styles.cardTitle}>
+                    {t('Comparação', 'Comparison')} #{comparacao.id}
+                  </Text>
+                  <Text style={styles.date}>
+                    {exibirData(comparacao.criado_em)}
+                  </Text>
+                </View>
               </View>
 
-              <Text style={styles.vs}>VS</Text>
+              <View style={styles.vehicles}>
+                <View style={styles.vehicle}>
+                  <Text style={styles.brand}>
+                    {comparacao.veiculo1_marca || '—'}
+                  </Text>
+                  <Text style={styles.model}>
+                    {comparacao.veiculo1_modelo || '—'}
+                  </Text>
+                  <Text style={styles.year}>
+                    {t('Ano', 'Year')} {comparacao.veiculo1_ano || '—'}
+                  </Text>
+                  <Text style={styles.listPrice}>
+                    {exibirValor(comparacao.veiculo1_valor)}
+                  </Text>
+                </View>
 
-              <View style={styles.vehicle}>
-                <Text style={styles.brand}>
-                  {comparacao.veiculo2_marca}
-                </Text>
+                <View style={styles.vsBadge}>
+                  <Text style={styles.vs}>VS</Text>
+                </View>
 
-                <Text style={styles.model}>
-                  {comparacao.veiculo2_modelo}
-                </Text>
-
-                <Text style={styles.year}>
-                  Ano {comparacao.veiculo2_ano}
-                </Text>
+                <View style={styles.vehicle}>
+                  <Text style={styles.brand}>
+                    {comparacao.veiculo2_marca || '—'}
+                  </Text>
+                  <Text style={styles.model}>
+                    {comparacao.veiculo2_modelo || '—'}
+                  </Text>
+                  <Text style={styles.year}>
+                    {t('Ano', 'Year')} {comparacao.veiculo2_ano || '—'}
+                  </Text>
+                  <Text style={styles.listPrice}>
+                    {exibirValor(comparacao.veiculo2_valor)}
+                  </Text>
+                </View>
               </View>
+
+              <TouchableOpacity
+                style={styles.detailsButton}
+                onPress={() =>
+                  navigation.push('ComparisonHistory', { comparacao })
+                }
+                activeOpacity={0.8}
+              >
+                <Text style={styles.detailsButtonText}>
+                  {t('Consultar comparação', 'View comparison')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => excluirComparacao(comparacao.id)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={17}
+                  color="#C0392B"
+                />
+                <Text style={styles.deleteButtonText}>
+                  {t('Excluir do histórico', 'Delete from history')}
+                </Text>
+              </TouchableOpacity>
             </View>
-
-            <Text style={styles.date}>
-              Salva em:{' '}
-              {comparacao.criado_em
-                ? new Date(comparacao.criado_em).toLocaleDateString('pt-BR')
-                : 'Data não disponível'}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.detailsButton}
-              onPress={() =>
-                navigation.push('ComparisonHistory', {
-                  comparacao,
-                })
-              }
-            >
-              <Text style={styles.detailsButtonText}>
-                Consultar comparação
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => excluirComparacao(comparacao.id)}
-            >
-              <Text style={styles.deleteButtonText}>
-                Excluir do histórico
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ))
+          ))}
+        </>
       )}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-  },
-
-  header: {
-    marginTop: 45,
-    marginBottom: 25,
-  },
-
-  backButton: {
-    marginBottom: 18,
-  },
-
-  backText: {
-    fontSize: 16,
-    color: '#444444',
-    marginBottom: 10,
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#111111',
-  },
-
-  subtitle: {
-    fontSize: 15,
-    color: '#666666',
-    marginTop: 5,
-  },
-
-  message: {
-    textAlign: 'center',
-    color: '#666666',
-    marginTop: 30,
-  },
-
-  emptyContainer: {
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    padding: 25,
-    borderRadius: 14,
-    marginTop: 15,
-  },
-
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#222222',
-    textAlign: 'center',
-  },
-
-  emptyText: {
-    fontSize: 14,
-    color: '#666666',
-    textAlign: 'center',
-    marginTop: 10,
-    lineHeight: 21,
-  },
-
-  card: {
-    backgroundColor: '#F7F7F7',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
-
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginBottom: 15,
-  },
-
-  vehicles: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  vehicle: {
-    width: '42%',
-  },
-
-  brand: {
-    fontSize: 13,
-    color: '#666666',
-  },
-
-  model: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginTop: 4,
-  },
-
-  year: {
-    fontSize: 13,
-    color: '#666666',
-    marginTop: 5,
-  },
-
-  vs: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#666666',
-  },
-
-  date: {
-    fontSize: 12,
-    color: '#777777',
-    marginTop: 18,
-    marginBottom: 12,
-  },
-
-  detailsButton: {
-    backgroundColor: '#111111',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-
-  detailsButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  deleteButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 5,
-  },
-
-  deleteButtonText: {
-    color: '#CC3333',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  comparison: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-
-  vehicleCard: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-  },
-
-  vehicleTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#111111',
-    marginBottom: 8,
-  },
-
-  label: {
-    fontSize: 11,
-    color: '#777777',
-    marginTop: 12,
-  },
-
-  value: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#222222',
-    marginTop: 4,
-  },
-
-  vsContainer: {
-    justifyContent: 'center',
-    alignSelf: 'center',
-    paddingHorizontal: 6,
-  },
-
-  price: {
-  fontSize: 15,
-  fontWeight: 'bold',
-  color: '#16803C',
-  marginTop: 4,
-  },
-  priceComparison: {
-  backgroundColor: '#F0F8F1',
-  borderRadius: 12,
-  padding: 16,
-  marginTop: 20,
-  borderWidth: 1,
-  borderColor: '#D5EAD8',
-},
-
-priceComparisonTitle: {
-  fontSize: 16,
-  fontWeight: 'bold',
-  color: '#222222',
-},
-
-priceDifference: {
-  fontSize: 22,
-  fontWeight: 'bold',
-  color: '#16803C',
-  marginTop: 8,
-},
-
-cheaperText: {
-  fontSize: 14,
-  color: '#16803C',
-  marginTop: 8,
-  fontWeight: '600',
-},
-});
+function criarEstilos(cores) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: cores.background,
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingBottom: 35,
+    },
+    backButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 8,
+      marginBottom: 20,
+    },
+    backText: {
+      fontSize: 14,
+      color: cores.primary,
+      fontWeight: '600',
+    },
+    header: {
+      marginBottom: 25,
+    },
+    title: {
+      fontSize: 26,
+      fontWeight: 'bold',
+      color: cores.text,
+    },
+    loadingContainer: {
+      alignItems: 'center',
+      marginTop: 50,
+    },
+    message: {
+      color: cores.secondary,
+      fontSize: 14,
+      marginTop: 12,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      backgroundColor: cores.card,
+      borderRadius: 18,
+      padding: 25,
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: cores.border,
+    },
+    emptyIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 25,
+      backgroundColor: cores.input,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    emptyTitle: {
+      fontSize: 19,
+      fontWeight: 'bold',
+      color: cores.text,
+      textAlign: 'center',
+    },
+    emptyText: {
+      fontSize: 14,
+      color: cores.secondary,
+      textAlign: 'center',
+      marginTop: 10,
+      lineHeight: 21,
+    },
+    primaryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: cores.primary,
+      paddingVertical: 13,
+      paddingHorizontal: 18,
+      borderRadius: 11,
+      marginTop: 22,
+      alignSelf: 'stretch',
+    },
+    primaryButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    counter: {
+      color: cores.secondary,
+      fontSize: 13,
+      fontWeight: '600',
+      marginBottom: 14,
+    },
+    card: {
+      backgroundColor: cores.card,
+      borderRadius: 18,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: cores.border,
+      elevation: 2,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 5,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 17,
+    },
+    cardIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 13,
+      backgroundColor: cores.input,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    cardHeaderInfo: {
+      flex: 1,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: cores.text,
+    },
+    vehicles: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      backgroundColor: cores.input,
+      borderRadius: 13,
+      padding: 12,
+      marginBottom: 16,
+    },
+    vehicle: {
+      flex: 1,
+      minWidth: 0,
+    },
+    brand: {
+      fontSize: 12,
+      color: cores.secondary,
+      fontWeight: '600',
+    },
+    model: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: cores.text,
+      marginTop: 5,
+    },
+    year: {
+      fontSize: 12,
+      color: cores.secondary,
+      marginTop: 6,
+    },
+    listPrice: {
+      fontSize: 12,
+      color: cores.primary,
+      fontWeight: 'bold',
+      marginTop: 8,
+    },
+    vsBadge: {
+      backgroundColor: cores.card,
+      borderWidth: 1,
+      borderColor: cores.border,
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      marginHorizontal: 8,
+      alignSelf: 'center',
+    },
+    vs: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: cores.primary,
+    },
+    detailsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: cores.primary,
+      paddingVertical: 13,
+      borderRadius: 11,
+    },
+    detailsButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    deleteButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingVertical: 12,
+      marginTop: 4,
+    },
+    deleteButtonText: {
+      color: '#C0392B',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    comparison: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+    },
+    vehicleCard: {
+      flex: 1,
+      minWidth: 0,
+      backgroundColor: cores.card,
+      borderRadius: 15,
+      padding: 11,
+      borderWidth: 1,
+      borderColor: cores.border,
+    },
+    vehicleIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: cores.input,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    vehicleTitle: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: cores.text,
+    },
+    label: {
+      fontSize: 11,
+      color: cores.secondary,
+      marginTop: 12,
+    },
+    value: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: cores.text,
+      marginTop: 4,
+    },
+    vsContainer: {
+      justifyContent: 'center',
+      alignSelf: 'center',
+      paddingHorizontal: 6,
+    },
+    vehiclePrice: {
+      fontSize: 13,
+      fontWeight: 'bold',
+      color: cores.primary,
+      marginTop: 4,
+    },
+    priceComparison: {
+      backgroundColor: cores.card,
+      borderRadius: 16,
+      padding: 18,
+      marginTop: 20,
+      borderWidth: 1,
+      borderColor: cores.border,
+    },
+    priceIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: cores.input,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    priceComparisonTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: cores.text,
+    },
+    priceDifference: {
+      fontSize: 21,
+      fontWeight: 'bold',
+      color: cores.primary,
+      marginTop: 8,
+    },
+    comparisonNote: {
+      fontSize: 13,
+      color: cores.secondary,
+      marginTop: 8,
+    },
+    cheaperContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      marginTop: 12,
+    },
+    cheaperText: {
+      flex: 1,
+      fontSize: 13,
+      color: cores.primary,
+      fontWeight: '600',
+    },
+    dateContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 20,
+      marginBottom: 12,
+    },
+    date: {
+      fontSize: 12,
+      color: cores.secondary,
+    },
+  });
+}
