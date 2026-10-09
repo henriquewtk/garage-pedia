@@ -1,6 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSettings } from '../context/SettingsContext';
 
 import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
@@ -19,39 +21,69 @@ const icons = {
 };
 
 export default function MainTabs() {
+  const { cores, idioma } = useSettings();
+  const insets = useSafeAreaInsets();
+
+  const nomesAbas =
+    idioma === 'en'
+      ? {
+          Home: 'Home',
+          Pesquisa: 'Search',
+          Comparar: 'Compare',
+          Favoritos: 'Favorites',
+          Perfil: 'Profile',
+        }
+      : {
+          Home: 'Início',
+          Pesquisa: 'Pesquisa',
+          Comparar: 'Comparar',
+          Favoritos: 'Favoritos',
+          Perfil: 'Perfil',
+        };
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
 
-        tabBarIcon: ({ focused, color, size }) => (
-          <Ionicons
-            name={
-              focused
-                ? icons[route.name]
-                : `${icons[route.name]}-outline`
-            }
-            size={size}
-            color={color}
-          />
-        ),
+        tabBarIcon: ({ focused, color, size }) => {
+          const nomeIcone = icons[route.name];
 
-        tabBarActiveTintColor: '#174A7E',
-        tabBarInactiveTintColor: '#8A94A3',
+          return (
+            <Ionicons
+              name={
+                focused
+                  ? nomeIcone
+                  : `${nomeIcone}-outline`
+              }
+              size={size}
+              color={color}
+            />
+          );
+        },
+
+        tabBarActiveTintColor: cores.primary,
+        tabBarInactiveTintColor: cores.secondary,
+        tabBarLabel: nomesAbas[route.name],
 
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
-          marginBottom: 4,
+          marginTop: 1,
+          marginBottom: 2,
+        },
+
+        tabBarItemStyle: {
+          paddingVertical: 2,
         },
 
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          height: 65,
-          paddingTop: 7,
-          paddingBottom: 5,
+          backgroundColor: cores.tabBar,
+          height: 60 + insets.bottom,
+          paddingTop: 5,
+          paddingBottom: Math.max(insets.bottom, 6),
           borderTopWidth: 1,
-          borderTopColor: '#E7EBF0',
+          borderTopColor: cores.border,
           elevation: 8,
         },
       })}
