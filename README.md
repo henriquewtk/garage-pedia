@@ -1,54 +1,112 @@
 # GaragePedia - Garagem Virtual e Comparador de Veículos
 
-O **GaragePedia** é uma aplicação desenvolvida como projeto acadêmico no formato de dinâmica de startup para a Universidade de Rio Verde (UniRV)[cite: 1]. A plataforma resolve a opacidade de preços e a dificuldade de cruzar dados de mercado automotivo com especificações técnicas, centralizando a gestão e o acompanhamento financeiro de veículos na palma da mão[cite: 1].
+O **GaragePedia** é um aplicativo mobile desenvolvido como projeto acadêmico, no formato de dinâmica de startup, para a Universidade de Rio Verde (UniRV). A plataforma resolve a falta de transparência nos preços de veículos, centralizando a consulta à Tabela FIPE, a comparação entre veículos e uma garagem virtual de favoritos na palma da mão.
+
+**Versão atual:** v1.0.0 (Entrega Final)
 
 ---
 
-## 🚀 Equipe de Desenvolvimento
-* **Daniel Carvalho** - Lead Full-Stack Architect & Tech Lead[cite: 1]
-* **Henrique Rondon** - Scrum Master & DevOps / QA Engineer[cite: 1]
-* **Joao Victor Vieira** - Mobile Front-end Developer & UI/UX Designer[cite: 1]
-* **Felipe Lopes** - Back-end Engineer & Database Specialist[cite: 1]
+## 👥 Integrantes
+
+| Nome | Papel |
+| --- | --- |
+| **Daniel Carvalho** | Lead Full-Stack Architect & Tech Lead |
+| **Henrique Rondon** | Scrum Master & DevOps / QA Engineer |
+| **Joao Victor Vieira** | Mobile Front-end Developer & UI/UX Designer |
+| **Felipe Lopes** | Back-end Engineer & Database Specialist |
 
 ---
 
-## 📱 Arquitetura e Stack Tecnológica
+## ✨ Funcionalidades
 
-O projeto adota uma arquitetura moderna e escalável dividida entre o ecossistema mobile, microsserviços de back-end e APIs externas:
-
-* **Front-end Mobile:** React Native com Expo[cite: 1] para alta performance e desenvolvimento ágil multiplataforma.
-* **Back-end (API / Microsserviços):** 
-  * **NestJS** atuando como BFF/Gateway (gerenciamento de rotas, autenticação e cache)[cite: 1].
-  * **Kotlin** (com Spring Boot / Ktor) como o microsserviço *Core Engine* para processamento de regras de negócio, desvalorização e cálculos automotivos[cite: 1].
-* **Banco de Dados & ORM:** MySQL (gerenciado via DBeaver) com Prisma ORM na camada NestJS[cite: 1].
-* **APIs Externas Integradas:**
-  * **FIPE API:** Consulta de preços médios, códigos e tabelas de mercado de veículos no Brasil (`https://parallelum.com.br/fipe/api/v1`)[cite: 1].
-  * **CarQuery API:** Fichas técnicas detalhadas de motor, potência e especificações mecânicas (`https://www.carqueryapi.com/api/0.3/`)[cite: 1].
-
----
-
-## 🎯 Escopo do MVP (Produto Mínimo Viável)
-
-* **Entrega 2 (Parcial):** 
-  * Tela de catálogo mobile com busca dinâmica (`Marca -> Modelo -> Ano`)[cite: 1].
-  * Consumo em tempo real da FIPE API no aplicativo[cite: 1].
-  * Tela de cadastro e listagem da "Garagem Virtual" do usuário[cite: 1].
-  * Setup inicial do repositório e navegação estruturada[cite: 1].
-* **Entrega 3 (Versão Final - Workshop):**
-  * Comparador de veículos lado a lado (Preço de mercado vs Ficha técnica)[cite: 1].
-  * Integração completa com o ecossistema de serviços e o core de processamento[cite: 1].
-  * Refinamentos visuais de UI/UX para a apresentação final[cite: 1].
+- **Cadastro e login de usuários** com persistência local (SQLite).
+- **Home** com saudação ao usuário e lista de marcas carregada em tempo real da API FIPE.
+- **Pesquisa de veículos** em cascata: `Marca → Modelo → Ano`, com preço FIPE atualizado.
+- **Detalhes do veículo**: preço, combustível, código FIPE e mês de referência.
+- **Favoritos (Garagem Virtual)**: adicionar e remover veículos favoritos.
+- **Comparador lado a lado** entre dois veículos favoritos (preço, combustível, ano e código FIPE).
+- **Histórico de comparações** salvo localmente, com opção de exclusão.
+- **Perfil do usuário**: visualização e edição de dados, logout.
+- **Configurações**: tema claro/escuro e idioma (Português / Inglês).
 
 ---
 
-## 🛠️ Como Executar o Projeto Mobile
+## 🛠️ Tecnologias Utilizadas
 
-1. Clone o repositório principal:
+- **React Native** + **Expo** (SDK 58) — desenvolvimento mobile multiplataforma (Android / iOS)
+- **JavaScript**
+- **React Navigation** (Native Stack e Bottom Tabs) — navegação entre telas
+- **expo-sqlite** — banco de dados local (usuários, favoritos e comparações)
+- **AsyncStorage** — preferências do usuário (tema, idioma, sessão)
+- **@expo/vector-icons** — ícones
+- **API FIPE** (`https://parallelum.com.br/fipe/api/v1`) — preços de veículos no Brasil
+
+---
+
+## 📂 Estrutura do Projeto
+
+```
+garage-pedia/
+└── mobile/
+    ├── App.js                 # Ponto de entrada do app
+    ├── app.json               # Configuração do Expo
+    ├── assets/                # Ícones e splash screen
+    └── src/
+        ├── components/        # Componentes reutilizáveis
+        ├── context/           # Contexto de configurações (tema e idioma)
+        ├── database/          # Banco de dados SQLite
+        ├── navigation/        # Navegação (Stack e Tabs)
+        ├── screens/           # Telas do aplicativo
+        └── services/          # Integração com a API FIPE
+```
+
+---
+
+## 🚀 Como Instalar e Executar Localmente
+
+### Pré-requisitos
+
+- [Node.js](https://nodejs.org/) 20 ou superior (com npm)
+- [Git](https://git-scm.com/)
+- App **Expo Go** instalado no celular (Android ou iOS) **ou** um emulador Android / simulador iOS
+
+### Passo a passo
+
+1. Clone o repositório:
+
    ```bash
-   git clone [https://github.com/henriquewtk/garage-pedia.git](https://github.com/henriquewtk/garage-pedia.git)
+   git clone https://github.com/henriquewtk/garage-pedia.git
+   ```
+
+2. Entre na pasta do app mobile:
+
+   ```bash
    cd garage-pedia/mobile
+   ```
 
-npm install
-npx expo start
+3. Instale as dependências:
 
-   
+   ```bash
+   npm install
+   ```
+
+4. Inicie o servidor de desenvolvimento do Expo:
+
+   ```bash
+   npx expo start
+   ```
+
+5. Abra o app:
+   - **Celular:** escaneie o QR Code exibido no terminal com o app Expo Go (Android) ou com a câmera (iOS). O celular e o computador devem estar na mesma rede Wi-Fi.
+   - **Emulador Android:** pressione `a` no terminal.
+   - **Simulador iOS (macOS):** pressione `i` no terminal.
+
+> O projeto não precisa de arquivo `.env` nem de chaves de API: a API FIPE é pública.
+
+---
+
+## 🗺️ Próximos Passos (Roadmap)
+
+- Back-end próprio (NestJS como BFF/Gateway e microsserviço em Kotlin) com banco MySQL.
+- Integração com a CarQuery API para fichas técnicas detalhadas.
+- Sincronização da garagem virtual na nuvem.
