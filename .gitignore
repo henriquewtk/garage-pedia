@@ -1,0 +1,27 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente / segredos
+.env
+.env.*
+!.env.example
+
+# Builds e caches
+build/
+dist/
+web-build/
+.expo/
+.dart_tool/
+coverage/
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Sistema operacional / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
