@@ -102,11 +102,3 @@ garage-pedia/
    - **Simulador iOS (macOS):** pressione `i` no terminal.
 
 > O projeto não precisa de arquivo `.env` nem de chaves de API: a API FIPE é pública.
-
----
-
-## 🗺️ Próximos Passos (Roadmap)
-
-- Back-end próprio (NestJS como BFF/Gateway e microsserviço em Kotlin) com banco MySQL.
-- Integração com a CarQuery API para fichas técnicas detalhadas.
-- Sincronização da garagem virtual na nuvem.
