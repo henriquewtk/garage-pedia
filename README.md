@@ -102,3 +102,18 @@ garage-pedia/
    - **Simulador iOS (macOS):** pressione `i` no terminal.
 
 > O projeto não precisa de arquivo `.env` nem de chaves de API: a API FIPE é pública.
+
+---
+
+## 📦 Build do APK (GitHub Actions)
+
+O workflow [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml) compila o APK Android **Garage Pedia** direto nos servidores do GitHub, sem precisar de Android Studio nem de conta Expo.
+
+- **Automático:** todo push que altera `mobile/` gera um novo APK.
+- **Manual:** aba **Actions** → **Build APK (Android)** → **Run workflow**.
+- **Download:** abra a execução concluída e baixe o APK em **Artifacts** (fica disponível por 30 dias).
+- **Release:** ao criar uma tag `v*` (ex.: `git tag v1.0.1 && git push origin v1.0.1`), o APK é anexado automaticamente a uma Release do GitHub.
+
+> O APK é assinado com a chave de debug padrão do Expo, o que permite instalá-lo diretamente no celular (habilite "instalar apps de fontes desconhecidas"). Para publicar na Play Store é necessário configurar uma chave de assinatura própria.
+
+Os ícones e a splash screen são gerados a partir dos arquivos vetoriais em `mobile/assets/brand/`.

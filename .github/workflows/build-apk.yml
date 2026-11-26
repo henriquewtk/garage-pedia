@@ -1,0 +1,110 @@
+name: Build APK (Android)
+
+# Gera o APK do Garage Pedia nos servidores do GitHub.
+# - Todo push (em mobile/ ou neste workflow) gera um APK disponível em "Artifacts" na execução.
+# - Pode ser disparado manualmente em Actions > Build APK (Android) > Run workflow.
+# - Ao criar uma tag "v*" (ex.: v1.0.1), o APK também é anexado a uma Release do GitHub.
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-apk.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  build:
+    name: Gerar APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v7
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Configurar cache do Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar projeto nativo Android (expo prebuild)
+        run: npx expo prebuild --platform android --clean --no-install
+        env:
+          CI: 1
+
+      - name: Compilar APK de release
+        working-directory: mobile/android
+        run: |
+          ./gradlew assembleRelease \
+            -PreactNativeArchitectures=armeabi-v7a,arm64-v8a \
+            --no-daemon
+
+      - name: Renomear APK
+        id: apk
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            NAME="GaragePedia-${GITHUB_REF_NAME}.apk"
+          else
+            NAME="GaragePedia-v${VERSION}-${GITHUB_SHA::7}.apk"
+          fi
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "path=mobile/dist/$NAME" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 📱 Garage Pedia — APK gerado"
+            echo ""
+            echo "- Arquivo: \`$NAME\`"
+            echo "- Tamanho: $(du -h "dist/$NAME" | cut -f1)"
+            echo "- Baixe em **Artifacts**, no fim desta página."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar APK como artefato
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Anexar APK à Release (apenas em tags v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          name: Garage Pedia ${{ github.ref_name }}
+          files: ${{ steps.apk.outputs.path }}
+          generate_release_notes: true

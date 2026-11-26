@@ -1,0 +1,39 @@
+<!-- Marca do Garage Pedia: telhado de garagem + carro esportivo. Canvas 1024x1024, fundo transparente. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <g id="mark" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Telhado da garagem -->
+    <path d="M196 432 L512 236 L828 432" stroke="#FFFFFF" stroke-width="56"/>
+    <!-- Carro -->
+    <path fill="#FFFFFF" stroke="none" d="
+      M214 676
+      L214 628
+      Q214 592 250 584
+      L360 566
+      Q414 514 478 504
+      L582 500
+      Q636 502 694 542
+      L732 566
+      L792 576
+      Q824 584 828 618
+      L830 664
+      Q830 690 804 690
+      L236 690
+      Q214 690 214 676 Z"/>
+    <!-- Vidros -->
+    <path fill="#174A7E" stroke="none" d="M402 566 Q438 528 480 522 L516 520 L516 566 Z"/>
+    <path fill="#174A7E" stroke="none" d="M542 520 L580 520 Q622 522 664 556 L672 566 L542 566 Z"/>
+    <!-- Farol -->
+    <path d="M786 606 L810 612" stroke="#6CA6E8" stroke-width="14"/>
+    <!-- Lanterna -->
+    <path d="M226 610 L244 608" stroke="#D65A5A" stroke-width="14"/>
+    <!-- Rodas -->
+    <circle cx="340" cy="690" r="66" fill="#174A7E"/>
+    <circle cx="340" cy="690" r="46" fill="#FFFFFF"/>
+    <circle cx="340" cy="690" r="18" fill="#6CA6E8"/>
+    <circle cx="700" cy="690" r="66" fill="#174A7E"/>
+    <circle cx="700" cy="690" r="46" fill="#FFFFFF"/>
+    <circle cx="700" cy="690" r="18" fill="#6CA6E8"/>
+    <!-- Pista -->
+    <path d="M186 792 H838" stroke="#6CA6E8" stroke-width="22"/>
+  </g>
+</svg>
